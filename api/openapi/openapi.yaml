@@ -1,0 +1,36 @@
+openapi: 3.0.0
+info:
+  title: Call Booking API
+  version: 0.1.0
+  description: |-
+    Сервис записи на звонок.
+
+    Контракт — источник истины для маршрутов и типов. Сервер реализует
+    эти маршруты, а TypeScript SDK для фронтенда генерируется из OpenAPI.
+tags: []
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      description: Проверка живости сервиса.
+      parameters: []
+      responses:
+        '200':
+          description: Ответ проверки живости сервиса.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ok
+                    description: Состояние сервиса.
+                required:
+                  - status
+components: {}
+servers:
+  - url: http://localhost:3000
+    description: Локальный сервер
+    variables: {}

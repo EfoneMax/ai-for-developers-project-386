@@ -1,0 +1,36 @@
+{
+  "name": "call-booking",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Сервис бронирования встреч по мотивам Cal.com",
+  "workspaces": [
+    "api",
+    "server",
+    "web"
+  ],
+  "type": "module",
+  "scripts": {
+    "setup": "npm install && npm run generate && hk install",
+    "generate": "npm run api:build && npm run client:generate",
+    "api:build": "npm run build --workspace api",
+    "client:generate": "npm run generate --workspace web",
+    "dev": "npm run generate && concurrently -n server,web -c green,magenta \"npm run dev:server\" \"npm run dev:web\"",
+    "dev:server": "npm run dev --workspace server",
+    "dev:web": "npm run dev --workspace web",
+    "build": "npm run generate && npm run build --workspace server && npm run build --workspace web",
+    "start": "npm run start --workspace server",
+    "lint": "oxlint --deny-warnings . && oxfmt --check .",
+    "format": "oxfmt --write .",
+    "typecheck": "npm run typecheck --workspace server && npm run typecheck --workspace web",
+    "test": "npm run test --workspace server",
+    "check": "npm run generate && npm run lint && npm run typecheck && npm run test && npm run build --workspace server && npm run build --workspace web"
+  },
+  "devDependencies": {
+    "concurrently": "10.0.7",
+    "oxfmt": "0.77.0",
+    "oxlint": "1.92.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

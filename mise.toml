@@ -1,0 +1,62 @@
+[settings]
+experimental = true
+
+[tools]
+node = "24.22.2"
+hk = "2.11.1"
+pitchfork = "2.33.1"
+
+[env]
+NODE_ENV = "development"
+
+[hooks]
+postinstall = "npm install"
+
+[daemons.server]
+init = "npm install"
+run = "exec npm run dev:server"
+port = 3000
+ready_cmd = "curl -fsS http://127.0.0.1:3000/api/health"
+
+[daemons.web]
+depends = ["server"]
+init = "npm run generate"
+run = "exec npm run dev:web"
+port = 5173
+ready_cmd = "curl -fsS http://127.0.0.1:5173"
+
+[daemon_groups]
+default = ["server", "web"]
+
+[tasks.setup]
+description = "Установить зависимости, собрать контракт и SDK, поставить Git-хуки"
+run = "npm install && npm run generate && hk install"
+
+[tasks.dev]
+description = "Запустить бэкенд и фронтенд как фоновые daemons"
+daemons = ["server", "web"]
+run = "echo 'API: http://localhost:3000, фронтенд: http://localhost:5173'"
+
+[tasks.generate]
+description = "Собрать OpenAPI из TypeSpec и сгенерировать TypeScript SDK"
+run = "npm run generate"
+
+[tasks.check]
+description = "Линтер, типы, дымовой тест и сборка"
+run = "npm run check"
+
+[tasks.lint]
+description = "Проверить код линтером и форматтером"
+run = "npm run lint"
+
+[tasks.typecheck]
+description = "Проверить типы TypeScript"
+run = "npm run typecheck"
+
+[tasks.test]
+description = "Запустить тесты"
+run = "npm run test"
+
+[tasks.build]
+description = "Собрать сервер и фронтенд"
+run = "npm run build"

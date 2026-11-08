@@ -1,0 +1,43 @@
+amends "package://github.com/jdx/hk/releases/download/v2.11.1/hk@2.11.1#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v2.11.1/hk@2.11.1#/Builtins.pkl"
+
+exclude = List("web/src/client/**", "api/openapi/**", "node_modules", "**/dist/**")
+
+steps {
+  ["oxlint"] {
+    glob = List("**/*.ts", "**/*.tsx")
+    check = "npx --no-install oxlint --deny-warnings {{files}}"
+    fix = "npx --no-install oxlint --deny-warnings --fix {{files}}"
+  }
+  ["oxfmt"] {
+    glob = List(
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.json",
+      "**/*.md",
+      "**/*.yaml",
+      "**/*.yml",
+      "**/*.css",
+      "**/*.html",
+    )
+    depends = "oxlint"
+    check = "npx --no-install oxfmt --check --no-error-on-unmatched-pattern {{files}}"
+    fix = "npx --no-install oxfmt --write --no-error-on-unmatched-pattern {{files}}"
+  }
+}
+
+hooks {
+  ["commit-msg"] {
+    steps {
+      ["conventional-commit"] = Builtins.check_conventional_commit
+    }
+  }
+  ["pre-push"] {
+    steps {
+      ["check"] {
+        exclusive = true
+        check = "mise run check"
+      }
+    }
+  }
+}
