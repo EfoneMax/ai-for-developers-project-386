@@ -10,7 +10,8 @@
 
 ## Команды
 
-Все команды запускаются из корня репозитория через mise.
+Основные команды запускаются из корня репозитория через mise; npm-скрипты
+используются для вспомогательных задач.
 
 ```bash
 mise run setup      # зависимости, OpenAPI и SDK, Git-хуки
@@ -25,7 +26,7 @@ mise run typecheck
 mise run test
 mise run build
 mise run generate   # TypeSpec → OpenAPI → TypeScript SDK
-npm run preview     # production-сборка фронтенда с proxy на API
+npm run preview     # предпросмотр сборки после mise run build
 npm run ui:add -- button  # добавить компонент shadcn/ui
 ```
 

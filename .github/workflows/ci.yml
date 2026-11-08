@@ -18,5 +18,20 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
       - run: mise run check
+      - name: Lint commit messages
+        shell: bash
+        run: |
+          if [[ "${{ github.event.before }}" =~ ^0+$ ]]; then
+            base="$(git merge-base "origin/${{ github.event.repository.default_branch }}" HEAD || true)"
+            if [[ -n "$base" ]]; then
+              npx --no-install commitlint --from "$base" --to "${{ github.event.after }}"
+            else
+              npx --no-install commitlint --last
+            fi
+          else
+            npx --no-install commitlint --from "${{ github.event.before }}" --to "${{ github.event.after }}"
+          fi

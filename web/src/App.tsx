@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,12 +26,16 @@ const initialConnection: Connection = {
 
 export default function App() {
   const [connection, setConnection] = useState<Connection>(initialConnection);
+  const requestId = useRef(0);
 
   const checkHealth = useCallback(async () => {
+    const currentRequest = ++requestId.current;
     setConnection(initialConnection);
 
     try {
       const { data, error } = await getHealth();
+
+      if (currentRequest !== requestId.current) return;
 
       if (error) {
         setConnection({ state: "error", message: "API вернул ошибку" });
@@ -44,6 +48,8 @@ export default function App() {
           : { state: "error", message: "API вернул неожиданный ответ" },
       );
     } catch (caught: unknown) {
+      if (currentRequest !== requestId.current) return;
+
       setConnection({
         state: "error",
         message: caught instanceof Error ? caught.message : "Неизвестная ошибка",
@@ -71,6 +77,8 @@ export default function App() {
 
         <CardContent className="px-8 pt-8 sm:px-12">
           <p
+            role="status"
+            aria-live="polite"
             className={cn(
               "inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold",
               connection.state === "ok" && "bg-emerald-50 text-emerald-700",
@@ -93,7 +101,13 @@ export default function App() {
           <p className="text-xs leading-relaxed text-[#6d7a72]">
             React + Vite · Fastify · TypeSpec → OpenAPI → TypeScript SDK
           </p>
-          <Button type="button" variant="outline" size="sm" onClick={() => void checkHealth()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={connection.state === "loading"}
+            onClick={() => void checkHealth()}
+          >
             <RefreshCw />
             Проверить снова
           </Button>

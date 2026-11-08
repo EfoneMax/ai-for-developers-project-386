@@ -21,7 +21,7 @@
     "start": "npm run start --workspace server",
     "preview": "npm run preview --workspace web",
     "lint": "oxlint --deny-warnings . && oxfmt --check . && npm run lint:actions && npm run lint:agents && npm run lint:contract && npm run lint:deps && npm run lint:versions && npm run lint:commits",
-    "lint:actions": "jactionlint .github/workflows/*.yml",
+    "lint:actions": "jactionlint .github/workflows/ci.yml",
     "lint:agents": "agnix --strict .",
     "lint:contract": "vacuum lint api/openapi/openapi.yaml --no-banner --no-style",
     "lint:deps": "knip",
@@ -29,7 +29,7 @@
     "lint:commits": "commitlint --last",
     "fix": "oxlint --fix . && oxfmt --write .",
     "format": "oxfmt --write .",
-    "ui:add": "shadcn add",
+    "ui:add": "shadcn add -c web",
     "typecheck": "npm run typecheck --workspace server && npm run typecheck --workspace web",
     "test": "npm run test --workspace server",
     "check": "npm run generate && npm run lint && npm run typecheck && npm run test && npm run build --workspace server && npm run build --workspace web"
