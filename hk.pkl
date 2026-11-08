@@ -1,6 +1,6 @@
 amends "package://github.com/jdx/hk/releases/download/v2.11.1/hk@2.11.1#/Config.pkl"
 
-exclude = List(".agents/**", "web/src/client/**", "api/openapi/**", "node_modules", "**/dist/**")
+exclude = List(".agents/**", ".opencode/**", "web/src/client/**", "api/openapi/**", "node_modules", "**/dist/**")
 
 steps {
   ["oxlint"] {
