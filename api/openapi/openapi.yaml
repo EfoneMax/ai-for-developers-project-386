@@ -7,7 +7,8 @@ info:
 
     Контракт — источник истины для маршрутов и типов. Сервер реализует
     эти маршруты, а TypeScript SDK для фронтенда генерируется из OpenAPI.
-tags: []
+tags:
+  - name: Health
 paths:
   /api/health:
     get:
@@ -20,16 +21,24 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    enum:
-                      - ok
-                    description: Состояние сервиса.
-                required:
-                  - status
-components: {}
+                $ref: '#/components/schemas/HealthBody'
+      tags:
+        - Health
+components:
+  schemas:
+    HealthBody:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+          description: Состояние сервиса.
+      description: Тело ответа проверки живости.
+      example:
+        status: ok
 servers:
   - url: http://localhost:3000
     description: Локальный сервер

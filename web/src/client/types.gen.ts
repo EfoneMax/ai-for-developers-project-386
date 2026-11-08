@@ -4,6 +4,16 @@ export type ClientOptions = {
     baseUrl: 'http://localhost:3000' | (string & {});
 };
 
+/**
+ * Тело ответа проверки живости.
+ */
+export type HealthBody = {
+    /**
+     * Состояние сервиса.
+     */
+    status: 'ok';
+};
+
 export type GetHealthData = {
     body?: never;
     path?: never;
@@ -15,12 +25,7 @@ export type GetHealthResponses = {
     /**
      * Ответ проверки живости сервиса.
      */
-    200: {
-        /**
-         * Состояние сервиса.
-         */
-        status: 'ok';
-    };
+    200: HealthBody;
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];

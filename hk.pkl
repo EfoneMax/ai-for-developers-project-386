@@ -1,5 +1,4 @@
 amends "package://github.com/jdx/hk/releases/download/v2.11.1/hk@2.11.1#/Config.pkl"
-import "package://github.com/jdx/hk/releases/download/v2.11.1/hk@2.11.1#/Builtins.pkl"
 
 exclude = List("web/src/client/**", "api/openapi/**", "node_modules", "**/dist/**")
 
@@ -29,7 +28,9 @@ steps {
 hooks {
   ["commit-msg"] {
     steps {
-      ["conventional-commit"] = Builtins.check_conventional_commit
+      ["commitlint"] {
+        check = "npx --no-install commitlint --edit {{commit_msg_file}}"
+      }
     }
   }
   ["pre-push"] {

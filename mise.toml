@@ -7,6 +7,7 @@ hk = "2.11.1"
 pitchfork = "2.33.1"
 jactionlint = "2.5.0"
 shellcheck = "0.11.0"
+vacuum = "0.39.3"
 
 [env]
 NODE_ENV = "development"
@@ -50,6 +51,10 @@ run = "npm run check"
 [tasks.lint]
 description = "Проверить код линтером и форматтером"
 run = "npm run lint"
+
+[tasks.fix]
+description = "Применить безопасные автоисправления"
+run = "npm run fix"
 
 [tasks.typecheck]
 description = "Проверить типы TypeScript"

@@ -1,0 +1,6 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": ["web/src/client/**"],
+  "ignoreDependencies": ["@typespec/http", "@typespec/openapi", "@typespec/openapi3"],
+  "ignoreBinaries": ["hk", "jactionlint", "vacuum"],
+}

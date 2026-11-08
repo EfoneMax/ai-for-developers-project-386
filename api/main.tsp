@@ -17,16 +17,21 @@ using TypeSpec.OpenAPI;
 @route("/api")
 namespace CallBooking;
 
+/** Тело ответа проверки живости. */
+@example(#{ status: "ok" })
+model HealthBody {
+  /** Состояние сервиса. */
+  status: "ok";
+}
+
 /** Ответ проверки живости сервиса. */
 model HealthResponse {
   @statusCode statusCode: 200;
-  @body body: {
-    /** Состояние сервиса. */
-    status: "ok";
-  };
+  @body body: HealthBody;
 }
 
 /** Проверка живости сервиса. */
+@tag("Health")
 @route("/health")
 @get
 op getHealth(): HealthResponse;
