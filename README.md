@@ -66,6 +66,7 @@ mise run check   # линтеры, типы, тесты и сборка — то
 
 API — `http://localhost:3000`, фронтенд — `http://localhost:5173`.
 Остановить фоновые сервисы: `mise daemons stop`.
+CI запускается на push в `main` и на pull request.
 
 ## Ограничения
 

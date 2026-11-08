@@ -5,5 +5,5 @@
     "web/src/components/ui/**": ["exports", "types"],
   },
   "ignoreDependencies": ["@typespec/http", "@typespec/openapi", "@typespec/openapi3"],
-  "ignoreBinaries": ["hk", "jactionlint", "vacuum"],
+  "ignoreBinaries": ["hk", "jactionlint", "shellcheck", "vacuum"],
 }

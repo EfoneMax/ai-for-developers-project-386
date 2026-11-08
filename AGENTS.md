@@ -1,6 +1,6 @@
 # AGENTS.md
 
-## Проект
+## Project
 
 Сервис бронирования встреч по мотивам Cal.com: гость выбирает свободный слот,
 владелец видит предстоящие записи. Данные пока хранятся в памяти процесса.
@@ -8,7 +8,9 @@
 Стек: TypeScript, Fastify, React + Vite, shadcn/ui, Vitest. Контракт описан
 на TypeSpec, из него собирается OpenAPI, из OpenAPI — TypeScript SDK фронтенда.
 
-## Команды
+Полная реализация — в ветке `feature/full-implementation`.
+
+## Commands
 
 Основные команды запускаются из корня репозитория через mise; npm-скрипты
 используются для вспомогательных задач.
@@ -33,7 +35,7 @@ npm run ui:add -- button  # добавить компонент shadcn/ui
 Адреса при `mise run dev`: API — `http://localhost:3000`, фронтенд —
 `http://localhost:5173`. Vite проксирует `/api` на Fastify.
 
-## Устройство
+## Structure
 
 - `api/main.tsp` — контракт TypeSpec, единственный источник истины для API.
 - `api/openapi/openapi.yaml` — сгенерированный OpenAPI.
@@ -42,22 +44,29 @@ npm run ui:add -- button  # добавить компонент shadcn/ui
 - `server/src/app.ts` — сборка Fastify-приложения, `server/src/index.ts` — запуск.
 - `server/test/` — тесты Vitest.
 - `web/src/` — React-приложение.
+- `scripts/` — проверки целостности и commitlint.
 - `mise.toml` — версии инструментов, задачи, hooks и daemons.
 - `hk.pkl` — Git-хуки: линтер и форматтер, commitlint, проверки перед push.
 - `opencode.json` — MCP-сервер shadcn.
+- `.agents/skills/` и `skills-lock.json` — проектные скиллы и их версии.
+  Глобальные скиллы OpenCode могут перекрывать одноимённые проектные.
+- `CODING_STANDARDS.md` — правила ревью.
 
-## Правила
+## Rules
 
-- Меняй API сначала в `api/main.tsp`, затем запускай `mise run generate`.
-  Не редактируй `api/openapi/openapi.yaml` и `web/src/client/` вручную.
+- Меняй API сначала в `api/main.tsp`, затем запускай `mise run generate` и
+  добавляй сгенерированные файлы в коммит. Не редактируй
+  `api/openapi/openapi.yaml` и `web/src/client/` вручную: `mise run check`
+  проверяет расхождение.
 - Компоненты shadcn добавляй через MCP или `npm run ui:add`, не копируй вручную.
 - Перед коммитом запускай `mise run check`. CI вызывает ту же задачу.
 - Не отключай проверки и правила линтера, чтобы пройти CI. Исключения —
-  узкие, с причиной и решением человека.
-- Сообщения коммитов пиши по Conventional Commits: `feat:`, `fix:`, `chore:`,
-  `docs:`, `test:`, `refactor:`, `ci:`. Перед формулировкой используй скилл
-  `conventional-commits`. Краткое описание в повелительном наклонении, без
-  точки в конце. Формат проверяется commitlint.
+  узкие, с причиной и решением человека. Стандарты ревью — в
+  `CODING_STANDARDS.md`.
+- Сообщения коммитов пиши по Conventional Commits. Перед формулировкой
+  используй скилл `conventional-commits`; типы и формат проверяет
+  `@commitlint/config-conventional`. Краткое описание в повелительном
+  наклонении, без точки в конце.
 - Не добавляй в репозиторий секреты и локальные файлы окружения.
 
 ## Agent skills
@@ -72,4 +81,5 @@ Default triage vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `rea
 
 ### Domain docs
 
-Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root; created lazily.
+See `docs/agents/domain.md`.

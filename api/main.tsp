@@ -31,6 +31,7 @@ model HealthResponse {
 }
 
 /** Проверка живости сервиса. */
+@opExample(#{ returnType: #{ statusCode: 200, body: #{ status: "ok" } } })
 @tag("Health")
 @route("/health")
 @get

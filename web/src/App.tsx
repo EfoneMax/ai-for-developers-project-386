@@ -28,9 +28,8 @@ export default function App() {
   const [connection, setConnection] = useState<Connection>(initialConnection);
   const requestId = useRef(0);
 
-  const checkHealth = useCallback(async () => {
+  const runHealthCheck = useCallback(async () => {
     const currentRequest = ++requestId.current;
-    setConnection(initialConnection);
 
     try {
       const { data, error } = await getHealth();
@@ -57,9 +56,16 @@ export default function App() {
     }
   }, []);
 
+  const refresh = useCallback(() => {
+    setConnection(initialConnection);
+    void runHealthCheck();
+  }, [runHealthCheck]);
+
   useEffect(() => {
-    void checkHealth();
-  }, [checkHealth]);
+    // The initial health check is an external sync; the request result is the only source of state.
+    // oxlint-disable-next-line react/set-state-in-effect
+    void runHealthCheck();
+  }, [runHealthCheck]);
 
   return (
     <main className="page">
@@ -76,8 +82,7 @@ export default function App() {
         </CardHeader>
 
         <CardContent className="px-8 pt-8 sm:px-12">
-          <p
-            role="status"
+          <output
             aria-live="polite"
             className={cn(
               "inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold",
@@ -94,7 +99,7 @@ export default function App() {
               <RefreshCw className="size-4 animate-spin" />
             )}
             {connection.message}
-          </p>
+          </output>
         </CardContent>
 
         <CardFooter className="mt-8 flex flex-col items-start gap-4 border-t border-[#17231d]/10 bg-transparent px-8 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-12">
@@ -106,7 +111,7 @@ export default function App() {
             variant="outline"
             size="sm"
             disabled={connection.state === "loading"}
-            onClick={() => void checkHealth()}
+            onClick={refresh}
           >
             <RefreshCw />
             Проверить снова

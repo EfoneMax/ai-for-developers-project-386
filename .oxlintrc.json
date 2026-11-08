@@ -9,5 +9,6 @@
   ],
   "categories": {
     "correctness": "error"
-  }
+  },
+  "plugins": ["react", "jsx-a11y", "vitest"]
 }

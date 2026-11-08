@@ -1,0 +1,2 @@
+# This template is guidance for a human-driven HITL loop, not a script the agent runs.
+exclude = [".agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh"]

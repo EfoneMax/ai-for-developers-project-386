@@ -22,6 +22,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthBody'
+              example:
+                status: ok
       tags:
         - Health
 components:
