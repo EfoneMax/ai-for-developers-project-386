@@ -22,7 +22,7 @@
     "preview": "npm run preview --workspace web",
     "lint": "oxlint --deny-warnings . && oxfmt --check . && npm run lint:actions && npm run lint:agents && npm run lint:contract && npm run lint:deps && npm run lint:versions && npm run lint:commits",
     "lint:actions": "jactionlint .github/workflows/ci.yml",
-    "lint:agents": "agnix --strict .",
+    "lint:agents": "agnix --strict AGENTS.md opencode.json",
     "lint:contract": "vacuum lint api/openapi/openapi.yaml --no-banner --no-style",
     "lint:deps": "knip",
     "lint:versions": "syncpack lint",

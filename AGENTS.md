@@ -58,3 +58,17 @@ npm run ui:add -- button  # добавить компонент shadcn/ui
   `test:`, `refactor:`, `ci:`. Краткое описание в повелительном наклонении,
   без точки в конце. Формат проверяется commitlint.
 - Не добавляй в репозиторий секреты и локальные файлы окружения.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues of `EfoneMax/ai-for-developers-project-386`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default triage vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
