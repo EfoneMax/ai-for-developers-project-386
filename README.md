@@ -52,9 +52,20 @@
 - **Контракт:** TypeSpec → OpenAPI.
 - **Клиентский SDK:** генерируется из OpenAPI для TypeScript-фронтенда.
 - **Бэкенд:** Node.js, TypeScript, Fastify. Маршруты реализуются по контракту и проверяются тестами.
-- **Фронтенд:** React, Vite, TypeScript.
+- **Фронтенд:** React, Vite, TypeScript, shadcn/ui.
 - **Тесты:** Vitest, включая дымовой тест запуска приложения.
 - **Хранение:** в памяти процесса; после перезапуска сервера записи и типы встреч сбрасываются.
+
+## Запуск и проверки
+
+```bash
+mise run setup   # зависимости, OpenAPI и SDK, Git-хуки
+mise run dev     # API и фронтенд как daemons
+mise run check   # линтеры, типы, тесты и сборка — то же, что в CI
+```
+
+API — `http://localhost:3000`, фронтенд — `http://localhost:5173`.
+Остановить фоновые сервисы: `mise daemons stop`.
 
 ## Ограничения
 

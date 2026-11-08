@@ -1,0 +1,20 @@
+{
+  "mcp": {
+    "servers": {
+      "hexlet": {
+        "type": "remote",
+        "url": "https://mcp.hexlet.io"
+      }
+    },
+    "shadcn": {
+      "type": "local",
+      "command": [
+        "npx",
+        "shadcn@latest",
+        "mcp"
+      ],
+      "enabled": true
+    }
+  },
+  "$schema": "https://opencode.ai/config.json"
+}

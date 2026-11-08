@@ -5,8 +5,8 @@
 Сервис бронирования встреч по мотивам Cal.com: гость выбирает свободный слот,
 владелец видит предстоящие записи. Данные пока хранятся в памяти процесса.
 
-Стек: TypeScript, Fastify, React + Vite, Vitest. Контракт описан на TypeSpec,
-из него собирается OpenAPI, из OpenAPI — TypeScript SDK фронтенда.
+Стек: TypeScript, Fastify, React + Vite, shadcn/ui, Vitest. Контракт описан
+на TypeSpec, из него собирается OpenAPI, из OpenAPI — TypeScript SDK фронтенда.
 
 ## Команды
 
@@ -18,12 +18,15 @@ mise run dev        # API и фронтенд как daemons
 mise daemons status # состояние фоновых сервисов
 mise daemons logs   # логи сервисов
 mise daemons stop   # остановить сервисы
-mise run check      # линтер, типы, тесты и сборка — то же, что в CI
+mise run check      # все проверки — то же, что в CI
+mise run fix        # безопасные автоисправления
 mise run lint
 mise run typecheck
 mise run test
 mise run build
 mise run generate   # TypeSpec → OpenAPI → TypeScript SDK
+npm run preview     # production-сборка фронтенда с proxy на API
+npm run ui:add -- button  # добавить компонент shadcn/ui
 ```
 
 Адреса при `mise run dev`: API — `http://localhost:3000`, фронтенд —
@@ -34,18 +37,23 @@ mise run generate   # TypeSpec → OpenAPI → TypeScript SDK
 - `api/main.tsp` — контракт TypeSpec, единственный источник истины для API.
 - `api/openapi/openapi.yaml` — сгенерированный OpenAPI.
 - `web/src/client/` — сгенерированный TypeScript SDK.
+- `web/src/components/ui/` — компоненты shadcn/ui.
 - `server/src/app.ts` — сборка Fastify-приложения, `server/src/index.ts` — запуск.
 - `server/test/` — тесты Vitest.
 - `web/src/` — React-приложение.
 - `mise.toml` — версии инструментов, задачи, hooks и daemons.
-- `hk.pkl` — Git-хуки: линтер и форматтер, Conventional Commits, проверки перед push.
+- `hk.pkl` — Git-хуки: линтер и форматтер, commitlint, проверки перед push.
+- `opencode.json` — MCP-серверы Hexlet и shadcn.
 
 ## Правила
 
 - Меняй API сначала в `api/main.tsp`, затем запускай `mise run generate`.
   Не редактируй `api/openapi/openapi.yaml` и `web/src/client/` вручную.
+- Компоненты shadcn добавляй через MCP или `npm run ui:add`, не копируй вручную.
 - Перед коммитом запускай `mise run check`. CI вызывает ту же задачу.
+- Не отключай проверки и правила линтера, чтобы пройти CI. Исключения —
+  узкие, с причиной и решением человека.
 - Коммиты — по Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`,
   `test:`, `refactor:`, `ci:`. Краткое описание в повелительном наклонении,
-  без точки в конце. Формат проверяется хуком `commit-msg`.
+  без точки в конце. Формат проверяется commitlint.
 - Не добавляй в репозиторий секреты и локальные файлы окружения.
