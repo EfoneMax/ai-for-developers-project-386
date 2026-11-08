@@ -1,7 +1,6 @@
 {
   "ignorePatterns": [
     ".github/workflows/hexlet-check.yml",
-    "opencode.json",
     "api/openapi/**",
     "web/src/client/**",
     "**/node_modules/**",

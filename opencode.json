@@ -8,11 +8,7 @@
     },
     "shadcn": {
       "type": "local",
-      "command": [
-        "npx",
-        "shadcn@latest",
-        "mcp"
-      ],
+      "command": ["npx", "shadcn@4.23.0", "mcp"],
       "enabled": true
     }
   },
