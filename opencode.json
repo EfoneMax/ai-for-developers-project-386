@@ -1,10 +1,6 @@
 {
   "mcp": {
     "servers": {
-      "hexlet": {
-        "type": "remote",
-        "url": "https://mcp.hexlet.io"
-      },
       "shadcn": {
         "type": "local",
         "command": ["npx", "shadcn@4.23.0", "mcp"],

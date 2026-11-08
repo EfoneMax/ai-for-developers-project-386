@@ -44,7 +44,7 @@ npm run ui:add -- button  # добавить компонент shadcn/ui
 - `web/src/` — React-приложение.
 - `mise.toml` — версии инструментов, задачи, hooks и daemons.
 - `hk.pkl` — Git-хуки: линтер и форматтер, commitlint, проверки перед push.
-- `opencode.json` — MCP-серверы Hexlet и shadcn.
+- `opencode.json` — MCP-сервер shadcn.
 
 ## Правила
 
