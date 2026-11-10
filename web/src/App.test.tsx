@@ -1,84 +1,72 @@
-import { StrictMode } from "react";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import { getHealth } from "./client/sdk.gen";
 
-vi.mock("./client/sdk.gen", () => ({
-  getHealth: vi.fn<typeof getHealth>(),
-}));
-
-const getHealthMock = vi.mocked(getHealth);
-
-type HealthResult = Awaited<ReturnType<typeof getHealth>>;
-
-function ok(): HealthResult {
-  return { data: { status: "ok" } } as HealthResult;
+function renderAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <App />
+    </MemoryRouter>,
+  );
 }
 
-function fail(): HealthResult {
-  return { error: { message: "boom" } } as HealthResult;
-}
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
-    resolve = resolvePromise;
-  });
-  return { promise, resolve };
-}
+const entryPoints = [
+  { section: "header", scope: "banner", name: "Записаться" },
+  { section: "hero", scope: "main", name: "Записаться" },
+  { section: "final", scope: "main", name: "Выбрать время" },
+] as const;
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
-describe("App", () => {
-  it("shows the API status after a successful request", async () => {
-    getHealthMock.mockResolvedValue(ok() as never);
+describe("landing page", () => {
+  it("opens at the root URL and describes the service", () => {
+    renderAt("/");
 
-    render(<App />);
-
-    expect(await screen.findByText("API отвечает")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Запись на звонок без переписки" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Как это работает" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Правила записи" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Календарь звонков" })).toBeTruthy();
   });
 
-  it("ignores a stale response after StrictMode runs the effect twice", async () => {
-    const first = deferred<HealthResult>();
-    const second = deferred<HealthResult>();
-    let callCount = 0;
+  it.each(entryPoints)(
+    "leads from the $section call to action to the booking page",
+    async ({ scope, name }) => {
+      const user = userEvent.setup();
+      renderAt("/");
 
-    getHealthMock.mockImplementation(() => {
-      callCount += 1;
+      await user.click(within(screen.getByRole(scope)).getByRole("link", { name }));
 
-      if (callCount === 1) return first.promise as never;
-      if (callCount === 2) return second.promise as never;
+      expect(screen.getByRole("heading", { name: "Страница записи скоро появится" })).toBeTruthy();
+    },
+  );
 
-      return Promise.resolve(ok()) as never;
-    });
+  it("opens the booking page directly at /book", () => {
+    renderAt("/book");
 
-    render(
-      <StrictMode>
-        <App />
-      </StrictMode>,
-    );
-
-    await waitFor(() => {
-      expect(getHealthMock.mock.calls.length).toBeGreaterThanOrEqual(2);
-    });
-
-    first.resolve(fail());
-    second.resolve(ok());
-
-    expect(await screen.findByText("API отвечает")).toBeTruthy();
-    expect(screen.queryByText("API вернул ошибку")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Страница записи скоро появится" })).toBeTruthy();
   });
 
-  it("disables the refresh button while a request is in flight", () => {
-    getHealthMock.mockImplementation((() => new Promise(() => {})) as never);
+  it("returns from the booking page to the landing page", async () => {
+    const user = userEvent.setup();
+    renderAt("/book");
 
-    render(<App />);
+    await user.click(screen.getByRole("link", { name: "На главную" }));
 
-    const button = screen.getByRole("button", { name: /Проверить снова/ }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
+    expect(screen.getByRole("heading", { name: "Запись на звонок без переписки" })).toBeTruthy();
+  });
+
+  it("does not call the API on the landing page", () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderAt("/");
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

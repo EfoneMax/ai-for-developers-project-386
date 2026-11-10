@@ -8,8 +8,6 @@
 Стек: TypeScript, Fastify, React + Vite, shadcn/ui, Vitest. Контракт описан
 на TypeSpec, из него собирается OpenAPI, из OpenAPI — TypeScript SDK фронтенда.
 
-Полная реализация — в ветке `feature/full-implementation`.
-
 ## Commands
 
 Основные команды запускаются из корня репозитория через mise; npm-скрипты
