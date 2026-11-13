@@ -53,7 +53,7 @@ const cardClassName = cn("h-full rounded-2xl border-white/60 bg-white/70 shadow-
 
 const rules = [
   { label: "Рабочие дни", value: "Понедельник–пятница" },
-  { label: "Рабочие часы", value: "10:00–18:00" },
+  { label: "Рабочие часы", value: "09:00–18:00" },
   { label: "Часовой пояс", value: "Europe/Moscow, UTC+3" },
   { label: "Окно записи", value: "14 календарных дней" },
 ];
