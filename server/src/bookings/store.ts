@@ -44,12 +44,24 @@ export interface BookingsStore {
    */
   book(input: NewBooking): Booking | undefined;
 
+  /**
+   * Отменяет бронь: единственный переход `confirmed → cancelled`. Запись
+   * сохраняется, снимок типа и время не пересчитываются. Отменить можно,
+   * пока `end > now`; иначе причина отказа.
+   */
+  cancel(id: string, now: Date): CancelBookingResult;
+
   /** Предстоящие брони: подтверждённые, у которых `end > now`, по началу. */
   listUpcoming(now: Date): Booking[];
 
   /** Интервалы подтверждённых броней — общая ось занятости владельца. */
   busyIntervals(): Interval[];
 }
+
+/** Исход отмены: отменённая бронь или причина отказа. */
+type CancelBookingResult =
+  | { ok: true; booking: Booking }
+  | { ok: false; reason: "not-found" | "not-cancellable" };
 
 /**
  * Создаёт хранилище броней. Начальные брони нужны тестам и будущим
@@ -79,6 +91,21 @@ export function createBookingsStore(seed: readonly Booking[] = []): BookingsStor
 
       bookings.push(booking);
       return booking;
+    },
+
+    cancel(id, now) {
+      const booking = bookings.find((item) => item.id === id);
+
+      if (booking === undefined) {
+        return { ok: false, reason: "not-found" };
+      }
+
+      if (booking.status === "cancelled" || Date.parse(booking.end) <= now.getTime()) {
+        return { ok: false, reason: "not-cancellable" };
+      }
+
+      booking.status = "cancelled";
+      return { ok: true, booking };
     },
 
     listUpcoming(now) {

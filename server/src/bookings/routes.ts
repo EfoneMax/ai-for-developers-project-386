@@ -63,4 +63,20 @@ export function registerBookingsRoutes(app: FastifyInstance, options: BookingsRo
   });
 
   app.get("/api/bookings", async () => ({ items: options.bookings.listUpcoming(options.now()) }));
+
+  app.post<{ Params: { id: string } }>("/api/bookings/:id/cancel", async (request, reply) => {
+    const result = options.bookings.cancel(request.params.id, options.now());
+
+    if (result.ok) {
+      return reply.status(200).send(result.booking);
+    }
+
+    if (result.reason === "not-found") {
+      return reply.status(404).send(apiError("BOOKING_NOT_FOUND", "Бронь не найдена"));
+    }
+
+    return reply
+      .status(409)
+      .send(apiError("BOOKING_NOT_CANCELLABLE", "Эту встречу уже нельзя отменить"));
+  });
 }

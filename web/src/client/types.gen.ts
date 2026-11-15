@@ -109,7 +109,7 @@ export type ErrorBody = {
 /**
  * Стабильный код ошибки API; интерфейс принимает решения по нему.
  */
-export type ErrorCode = 'VALIDATION_ERROR' | 'MEETING_TYPE_NOT_FOUND' | 'SLOT_TAKEN' | 'NOT_FOUND' | 'INTERNAL_ERROR';
+export type ErrorCode = 'VALIDATION_ERROR' | 'MEETING_TYPE_NOT_FOUND' | 'SLOT_TAKEN' | 'BOOKING_NOT_FOUND' | 'BOOKING_NOT_CANCELLABLE' | 'NOT_FOUND' | 'INTERNAL_ERROR';
 
 /**
  * Ошибка конкретного поля запроса.
@@ -381,6 +381,48 @@ export type CreateBookingResponses = {
 };
 
 export type CreateBookingResponse = CreateBookingResponses[keyof CreateBookingResponses];
+
+export type CancelBookingData = {
+    body?: never;
+    path: {
+        /**
+         * Идентификатор брони.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/bookings/{id}/cancel';
+};
+
+export type CancelBookingErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type CancelBookingError = CancelBookingErrors[keyof CancelBookingErrors];
+
+export type CancelBookingResponses = {
+    /**
+     * Ответ на отмену брони: та же бронь в статусе `cancelled`.
+     */
+    200: Booking;
+};
+
+export type CancelBookingResponse = CancelBookingResponses[keyof CancelBookingResponses];
 
 export type GetHealthData = {
     body?: never;
