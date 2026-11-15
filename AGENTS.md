@@ -54,6 +54,8 @@ npm run ui:add -- button  # добавить компонент shadcn/ui
 
 ## Rules
 
+- Перед сдачей шага пройди `docs/delivery-checklist.md`: 16 проверок приёмки,
+  включая единую команду проверок, конфликт слотов и release-PR.
 - Меняй API сначала в `api/main.tsp`, затем запускай `mise run generate` и
   добавляй сгенерированные файлы в коммит. Не редактируй
   `api/openapi/openapi.yaml` и `web/src/client/` вручную: `mise run check`

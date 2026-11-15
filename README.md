@@ -90,6 +90,10 @@ Playwright артефактом. Pre-push hook выполняет только `
 - Breaking change (`!` после типа или футер `BREAKING CHANGE:`) — major: `0.1.0` → `1.0.0`.
 - `chore:`, `docs:`, `test:` и `refactor:` релиз не двигают.
 
+Предусловие: в `Settings → Actions → General` должно быть разрешено
+`Allow GitHub Actions to create and approve pull requests`, иначе job `Release`
+упадёт при создании PR.
+
 После пуша в `main` workflow `Release` создаёт или обновляет pull request с новой версией в `package.json` и записью в `CHANGELOG.md`. Мерж этого PR создаёт тег `vX.Y.Z` и GitHub Release; вручную теги и релизы не создаются.
 
 Пакеты `api`, `server` и `web` приватные: в npm ничего не публикуется, своих версий и релизов у них нет, workspace-версии не бампаются. Версия контракта в TypeSpec (`@info(version: "0.1.0")`) автоматически не меняется.
