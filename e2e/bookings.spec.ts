@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
-const API_URL = "http://127.0.0.1:3000";
+const API_URL = `http://127.0.0.1:${process.env.E2E_API_PORT ?? 3000}`;
 
 interface Slot {
   start: string;
