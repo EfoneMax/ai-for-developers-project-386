@@ -1,10 +1,16 @@
 import { MemoryRouter } from "react-router-dom";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { ApiError, createMeetingType, listMeetingTypes } from "@/features/meeting-types/api";
-import type { MeetingType } from "@/client/types.gen";
+import { listBookings } from "@/features/bookings/api";
+import type { Booking, MeetingType } from "@/client/types.gen";
+
+vi.mock("@/features/bookings/api", () => ({
+  listBookings: vi.fn<typeof import("@/features/bookings/api").listBookings>(),
+  createBooking: vi.fn<typeof import("@/features/bookings/api").createBooking>(),
+}));
 
 vi.mock("@/features/meeting-types/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/features/meeting-types/api")>();
@@ -38,6 +44,10 @@ async function openCreateDialog() {
   await user.click(await screen.findByRole("button", { name: "Создать" }));
   return user;
 }
+
+beforeEach(() => {
+  vi.mocked(listBookings).mockResolvedValue([]);
+});
 
 afterEach(() => {
   cleanup();
@@ -176,5 +186,86 @@ describe("кабинет владельца: создание типа встр�
 
     expect(submit.hasAttribute("disabled")).toBe(true);
     expect(createMeetingType).toHaveBeenCalledTimes(1);
+  });
+});
+
+const upcomingBooking: Booking = {
+  id: "11111111-1111-4111-8111-111111111111",
+  status: "confirmed",
+  meetingType: {
+    id: meetingType.id,
+    name: meetingType.name,
+    durationMinutes: 45,
+  },
+  start: "2026-11-13T06:00:00.000Z",
+  end: "2026-11-13T06:45:00.000Z",
+  guest: { name: "Анна Петрова", email: "anna@example.com", comment: "Обсудить сроки" },
+};
+
+async function openUpcomingTab() {
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole("tab", { name: "Предстоящие встречи" }));
+  return user;
+}
+
+describe("кабинет владельца: предстоящие встречи", () => {
+  it("показывает две вкладки и открывает типы встреч по умолчанию", async () => {
+    renderOwner();
+
+    expect(await screen.findByRole("tab", { name: "Типы встреч" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Предстоящие встречи" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Типы встреч" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+  });
+
+  it("показывает встречу с московским временем, снимком типа и контактами гостя", async () => {
+    vi.mocked(listBookings).mockResolvedValue([upcomingBooking]);
+
+    renderOwner();
+    await openUpcomingTab();
+
+    const row = (await screen.findByText("Анна Петрова")).closest("li");
+    if (row === null) {
+      throw new Error("Строка предстоящей встречи не найдена");
+    }
+    expect(within(row).getByText("пт, 13 ноября")).toBeTruthy();
+    expect(within(row).getByText(/09:00–09:45/)).toBeTruthy();
+    expect(within(row).getByText("Созвон по проекту")).toBeTruthy();
+    expect(within(row).getByText("45 мин")).toBeTruthy();
+    expect(within(row).getByText("Анна Петрова")).toBeTruthy();
+    expect(within(row).getByText("anna@example.com")).toBeTruthy();
+    expect(within(row).getByText("Обсудить сроки")).toBeTruthy();
+    expect(screen.queryByText(upcomingBooking.id)).toBeNull();
+  });
+
+  it("показывает пустое состояние, когда предстоящих встреч нет", async () => {
+    renderOwner();
+    await openUpcomingTab();
+
+    expect(await screen.findByText("Пока нет предстоящих встреч")).toBeTruthy();
+  });
+
+  it("показывает скелетоны, пока список встреч грузится", async () => {
+    vi.mocked(listBookings).mockReturnValue(new Promise(() => {}));
+
+    renderOwner();
+    await openUpcomingTab();
+
+    expect(screen.getByRole("status", { name: "Загружаем предстоящие встречи" })).toBeTruthy();
+  });
+
+  it("показывает ошибку загрузки и повторяет запрос", async () => {
+    vi.mocked(listBookings)
+      .mockRejectedValueOnce(new Error("network"))
+      .mockResolvedValueOnce([upcomingBooking]);
+
+    renderOwner();
+    const user = await openUpcomingTab();
+
+    expect(await screen.findByText("Не удалось загрузить предстоящие встречи")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Повторить" }));
+
+    expect(await screen.findByText("Анна Петрова")).toBeTruthy();
   });
 });

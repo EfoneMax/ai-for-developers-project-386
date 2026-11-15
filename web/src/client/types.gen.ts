@@ -5,6 +5,90 @@ export type ClientOptions = {
 };
 
 /**
+ * Бронь — подтверждённое гостем право занять слот вместе с контактами.
+ *
+ * Хранит снимок типа встречи, поэтому правка или удаление типа не меняет
+ * уже созданную бронь.
+ */
+export type Booking = {
+    /**
+     * Идентификатор, назначает сервер; в интерфейсе не показывается.
+     */
+    id: string;
+    /**
+     * Статус брони.
+     */
+    status: BookingStatus;
+    /**
+     * Снимок типа встречи на момент записи.
+     */
+    meetingType: BookingMeetingType;
+    /**
+     * Начало встречи в UTC, ISO 8601.
+     */
+    start: string;
+    /**
+     * Конец встречи в UTC; равен началу плюс длительность из снимка.
+     */
+    end: string;
+    /**
+     * Контактные данные гостя.
+     */
+    guest: Guest;
+};
+
+/**
+ * Поля создания брони.
+ */
+export type BookingCreate = {
+    /**
+     * Идентификатор типа встречи из каталога.
+     */
+    meetingTypeId: string;
+    /**
+     * Желаемое начало встречи в UTC, ISO 8601.
+     */
+    start: string;
+    /**
+     * Контактные данные гостя.
+     */
+    guest: Guest;
+};
+
+/**
+ * Предстоящие брони владельца.
+ */
+export type BookingList = {
+    /**
+     * Предстоящие брони, отсортированные по началу.
+     */
+    items: Array<Booking>;
+};
+
+/**
+ * Снимок типа встречи на момент создания брони (ADR-0006).
+ */
+export type BookingMeetingType = {
+    /**
+     * Идентификатор исходного типа; тип может быть уже удалён.
+     */
+    id: string;
+    /**
+     * Название типа на момент записи.
+     */
+    name: string;
+    /**
+     * Длительность встречи в минутах на момент записи.
+     */
+    durationMinutes: number;
+};
+
+/**
+ * Статус брони: подтверждённая занимает слот, отменённая — нет.
+ */
+export type BookingStatus = 'confirmed' | 'cancelled';
+
+/**
  * Тело ошибки API.
  */
 export type ErrorBody = {
@@ -25,7 +109,7 @@ export type ErrorBody = {
 /**
  * Стабильный код ошибки API; интерфейс принимает решения по нему.
  */
-export type ErrorCode = 'VALIDATION_ERROR' | 'MEETING_TYPE_NOT_FOUND' | 'NOT_FOUND' | 'INTERNAL_ERROR';
+export type ErrorCode = 'VALIDATION_ERROR' | 'MEETING_TYPE_NOT_FOUND' | 'SLOT_TAKEN' | 'NOT_FOUND' | 'INTERNAL_ERROR';
 
 /**
  * Ошибка конкретного поля запроса.
@@ -39,6 +123,27 @@ export type ErrorDetail = {
      * Русский текст ошибки для показа рядом с полем.
      */
     message: string;
+};
+
+/**
+ * Контактные данные гостя в брони.
+ *
+ * Гость не учётная запись: у него нет id, подтверждения email и списка
+ * своих броней.
+ */
+export type Guest = {
+    /**
+     * Имя, от 1 до 100 символов после удаления пробелов по краям.
+     */
+    name: string;
+    /**
+     * Email до 254 символов с базовой проверкой формата.
+     */
+    email: string;
+    /**
+     * Комментарий до 1000 символов. Пустой комментарий не возвращается.
+     */
+    comment?: string;
 };
 
 /**
@@ -157,6 +262,80 @@ export type MeetingTypeListQueryLimit = number;
  */
 export type MeetingTypeListQueryPage = number;
 
+export type ListBookingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/bookings';
+};
+
+export type ListBookingsErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type ListBookingsError = ListBookingsErrors[keyof ListBookingsErrors];
+
+export type ListBookingsResponses = {
+    /**
+     * Ответ со списком предстоящих броней.
+     */
+    200: BookingList;
+};
+
+export type ListBookingsResponse = ListBookingsResponses[keyof ListBookingsResponses];
+
+export type CreateBookingData = {
+    body: BookingCreate;
+    path?: never;
+    query?: never;
+    url: '/api/bookings';
+};
+
+export type CreateBookingErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type CreateBookingError = CreateBookingErrors[keyof CreateBookingErrors];
+
+export type CreateBookingResponses = {
+    /**
+     * Ответ на создание брони.
+     */
+    201: Booking;
+};
+
+export type CreateBookingResponse = CreateBookingResponses[keyof CreateBookingResponses];
+
 export type GetHealthData = {
     body?: never;
     path?: never;
@@ -201,6 +380,10 @@ export type ListMeetingTypesErrors = {
     /**
      * Конверт ошибки API (ADR-0005).
      */
+    409: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
     500: ErrorBody;
 };
 
@@ -231,6 +414,10 @@ export type CreateMeetingTypeErrors = {
      * Конверт ошибки API (ADR-0005).
      */
     404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
     /**
      * Конверт ошибки API (ADR-0005).
      */
@@ -269,6 +456,10 @@ export type ListMeetingTypeSlotsErrors = {
      * Конверт ошибки API (ADR-0005).
      */
     404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
     /**
      * Конверт ошибки API (ADR-0005).
      */
