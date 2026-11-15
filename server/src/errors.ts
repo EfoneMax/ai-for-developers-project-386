@@ -1,5 +1,9 @@
 /** Стабильные коды ошибок API из контракта (ADR-0005). */
-export type ApiErrorCode = "VALIDATION_ERROR" | "NOT_FOUND" | "INTERNAL_ERROR";
+export type ApiErrorCode =
+  | "VALIDATION_ERROR"
+  | "MEETING_TYPE_NOT_FOUND"
+  | "NOT_FOUND"
+  | "INTERNAL_ERROR";
 
 /** Ошибка конкретного поля запроса. */
 export interface ApiErrorDetail {

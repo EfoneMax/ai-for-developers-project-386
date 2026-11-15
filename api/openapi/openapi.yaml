@@ -98,6 +98,49 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/MeetingTypeCreate'
+  /api/meeting-types/{id}/slots:
+    get:
+      operationId: listMeetingTypeSlots
+      description: |-
+        Свободные слоты типа встречи за всё окно записи.
+
+        Окно — 14 московских дат, старты по будням с 09:00 до 18:00. Маршрут
+        не принимает дату, диапазон или часовой пояс: клиент показывает время
+        в поясе гостя сам.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор типа встречи.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ответ со свободными слотами типа встречи.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotList'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Meeting Types
 components:
   parameters:
     MeetingTypeListQuery.limit:
@@ -147,6 +190,7 @@ components:
       type: string
       enum:
         - VALIDATION_ERROR
+        - MEETING_TYPE_NOT_FOUND
         - NOT_FOUND
         - INTERNAL_ERROR
       description: Стабильный код ошибки API; интерфейс принимает решения по нему.
@@ -260,6 +304,36 @@ components:
           format: int32
           description: Размер страницы, от 1 до 100.
       description: Страница списка типов встреч.
+    Slot:
+      type: object
+      required:
+        - start
+        - end
+      properties:
+        start:
+          type: string
+          format: date-time
+          description: Начало слота в UTC, ISO 8601.
+        end:
+          type: string
+          format: date-time
+          description: Конец слота в UTC, ISO 8601.
+      description: |-
+        Слот — интервал времени, который гость может забронировать.
+
+        Начало и конец — абсолютные моменты UTC. Конец равен началу плюс
+        длительность типа встречи.
+    SlotList:
+      type: object
+      required:
+        - slots
+      properties:
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slot'
+          description: Свободные слоты, отсортированные по началу.
+      description: Свободные слоты типа встречи за всё окно записи.
 servers:
   - url: http://localhost:3000
     description: Локальный сервер
