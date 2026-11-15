@@ -1,0 +1,37 @@
+/** Стабильные коды ошибок API из контракта (ADR-0005). */
+export type ApiErrorCode = "VALIDATION_ERROR" | "NOT_FOUND" | "INTERNAL_ERROR";
+
+/** Ошибка конкретного поля запроса. */
+export interface ApiErrorDetail {
+  field: string;
+  message: string;
+}
+
+/** Конверт ошибки API. */
+export interface ApiErrorBody {
+  error: {
+    code: ApiErrorCode;
+    message: string;
+    details?: ApiErrorDetail[];
+  };
+}
+
+/** Собирает конверт ошибки; пустой список details не попадает в ответ. */
+export function apiError(
+  code: ApiErrorCode,
+  message: string,
+  details?: ApiErrorDetail[],
+): ApiErrorBody {
+  return {
+    error: {
+      code,
+      message,
+      ...(details === undefined || details.length === 0 ? {} : { details }),
+    },
+  };
+}
+
+/** Ошибка валидации полей или параметров запроса. */
+export function validationError(details: ApiErrorDetail[]): ApiErrorBody {
+  return apiError("VALIDATION_ERROR", "Проверьте заполнение полей", details);
+}

@@ -45,6 +45,10 @@ run = "npm run generate"
 description = "Линтер, типы, дымовой тест и сборка"
 run = "npm run check"
 
+[tasks."check:e2e"]
+description = "Собрать проект и прогнать браузерные сценарии Playwright"
+run = "npm run check:e2e"
+
 [tasks.lint]
 description = "Проверить код линтером и форматтером"
 run = "npm run lint"
