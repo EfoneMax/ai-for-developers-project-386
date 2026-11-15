@@ -64,6 +64,7 @@ mise run setup      # зависимости, OpenAPI и SDK, Git-хуки
 mise run dev        # API и фронтенд как daemons
 mise run check      # линтеры, типы, тесты и сборка — быстрый job CI
 mise run check:e2e  # сборка и браузерные сценарии Playwright
+mise run check:all  # все проверки: быстрые и браузерные, как в CI
 ```
 
 `mise run check` не запускает браузер: он укладывается в минуты и выполняется
@@ -74,10 +75,11 @@ API — `http://localhost:3000`, фронтенд — `http://localhost:5173`.
 Кабинет владельца — `http://localhost:5173/owner`, он открыт без входа.
 Остановить фоновые сервисы: `mise daemons stop`.
 
-CI повторяет этот порядок двумя job: сначала быстрый `check`, затем `e2e` с
-зависимостью от него. Оба job запускаются на pull request и push в `main`.
-`e2e` ставит только Chromium, ограничен 20 минутами и при падении сохраняет
-трейсы Playwright артефактом. Pre-push hook выполняет только `mise run check`.
+CI запускает ту же команду `mise run check:all` одним job на pull request и
+push в `main`: браузерный слой идёт после быстрых проверок внутри одной
+команды, поэтому красный линтер не тратит минуты на Chromium. Job ставит
+только Chromium, ограничен 25 минутами и при падении сохраняет трейсы
+Playwright артефактом. Pre-push hook выполняет только `mise run check`.
 
 ## Версии и релизы
 

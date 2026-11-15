@@ -21,6 +21,7 @@ mise daemons logs   # логи сервисов
 mise daemons stop   # остановить сервисы
 mise run check      # быстрые проверки: генерация, линтеры, типы, тесты, сборка
 mise run check:e2e  # сборка и браузерные сценарии Playwright
+mise run check:all  # все проверки: check + check:e2e, один в один как в CI
 mise run fix        # безопасные автоисправления
 mise run lint
 mise run typecheck
