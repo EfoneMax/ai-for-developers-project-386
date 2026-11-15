@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateBookingData, CreateBookingErrors, CreateBookingResponses, CreateMeetingTypeData, CreateMeetingTypeErrors, CreateMeetingTypeResponses, DeleteMeetingTypeData, DeleteMeetingTypeErrors, DeleteMeetingTypeResponses, GetHealthData, GetHealthResponses, ListBookingsData, ListBookingsErrors, ListBookingsResponses, ListMeetingTypesData, ListMeetingTypesErrors, ListMeetingTypeSlotsData, ListMeetingTypeSlotsErrors, ListMeetingTypeSlotsResponses, ListMeetingTypesResponses, UpdateMeetingTypeData, UpdateMeetingTypeErrors, UpdateMeetingTypeResponses } from './types.gen';
+import type { CancelBookingData, CancelBookingErrors, CancelBookingResponses, CreateBookingData, CreateBookingErrors, CreateBookingResponses, CreateMeetingTypeData, CreateMeetingTypeErrors, CreateMeetingTypeResponses, DeleteMeetingTypeData, DeleteMeetingTypeErrors, DeleteMeetingTypeResponses, GetHealthData, GetHealthResponses, ListBookingsData, ListBookingsErrors, ListBookingsResponses, ListMeetingTypesData, ListMeetingTypesErrors, ListMeetingTypeSlotsData, ListMeetingTypeSlotsErrors, ListMeetingTypeSlotsResponses, ListMeetingTypesResponses, UpdateMeetingTypeData, UpdateMeetingTypeErrors, UpdateMeetingTypeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -42,6 +42,17 @@ export const createBooking = <ThrowOnError extends boolean = false>(options: Opt
         ...options.headers
     }
 });
+
+/**
+ * Отмена брони владельцем.
+ *
+ * Единственный переход `confirmed → cancelled`: запись сохраняется, снимок
+ * типа и время не пересчитываются, отменённая бронь освобождает слот.
+ * Отменить можно, пока `end > now`; уже отменённая или прошедшая бронь
+ * отвечает 409 `BOOKING_NOT_CANCELLABLE`, неизвестный `id` — 404
+ * `BOOKING_NOT_FOUND`.
+ */
+export const cancelBooking = <ThrowOnError extends boolean = false>(options: Options<CancelBookingData, ThrowOnError>): RequestResult<CancelBookingResponses, CancelBookingErrors, ThrowOnError> => (options.client ?? client).post<CancelBookingResponses, CancelBookingErrors, ThrowOnError>({ url: '/api/bookings/{id}/cancel', ...options });
 
 /**
  * Проверка живости сервиса.

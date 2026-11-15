@@ -116,6 +116,21 @@ test.describe("гость в другом часовом поясе", () => {
     await expect(row).toContainText(guest.email);
     await expect(row).toContainText(guest.comment);
     await expect(row).toContainText(/\d{2}:\d{2}–\d{2}:\d{2}/);
+
+    await page.getByRole("button", { name: `Действия: встреча с ${guest.name}` }).click();
+    await page.getByRole("menuitem", { name: "Отменить" }).click();
+
+    const confirmation = page.getByRole("alertdialog", {
+      name: `Отменить встречу с ${guest.name}?`,
+    });
+    await expect(confirmation).toBeVisible();
+    await confirmation.getByRole("button", { name: "Отменить" }).click();
+
+    await expect(confirmation).toHaveCount(0);
+    await expect(row).toHaveCount(0);
+
+    const freedSlots = await listSlots(request, meetingType.id);
+    expect(freedSlots.map((freed) => freed.start)).toContain(slot.start);
   });
 });
 

@@ -13,10 +13,17 @@ import {
 import { listBookings } from "@/features/bookings/api";
 import type { Booking, MeetingType } from "@/client/types.gen";
 
-vi.mock("@/features/bookings/api", () => ({
-  listBookings: vi.fn<typeof import("@/features/bookings/api").listBookings>(),
-  createBooking: vi.fn<typeof import("@/features/bookings/api").createBooking>(),
-}));
+import { cancelBooking } from "@/features/bookings/api";
+
+vi.mock("@/features/bookings/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/bookings/api")>();
+  return {
+    ...actual,
+    cancelBooking: vi.fn<typeof actual.cancelBooking>(),
+    listBookings: vi.fn<typeof actual.listBookings>(),
+    createBooking: vi.fn<typeof actual.createBooking>(),
+  };
+});
 
 vi.mock("@/features/meeting-types/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/features/meeting-types/api")>();
@@ -495,6 +502,120 @@ describe("кабинет владельца: удаление типа встр�
     await screen.findByRole("heading", { name: "Созвон по проекту" });
     const dialog = await openDeleteDialog(user);
     await user.click(within(dialog).getByRole("button", { name: "Удалить" }));
+
+    expect(await within(dialog).findByRole("alert")).toBeTruthy();
+    expect(within(dialog).getByText("Не удалось связаться с сервером")).toBeTruthy();
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+  });
+});
+
+describe("кабинет владельца: отмена встречи", () => {
+  async function openCancelDialog(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(
+      await screen.findByRole("button", {
+        name: `Действия: встреча с ${upcomingBooking.guest.name}`,
+      }),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: "Отменить" }));
+
+    return screen.findByRole("alertdialog", {
+      name: `Отменить встречу с ${upcomingBooking.guest.name}?`,
+    });
+  }
+
+  it("открывает подтверждение из меню строки и объясняет последствия отмены", async () => {
+    vi.mocked(listBookings).mockResolvedValue([upcomingBooking]);
+    const user = userEvent.setup();
+
+    renderOwner();
+    await openUpcomingTab();
+    const dialog = await openCancelDialog(user);
+
+    expect(within(dialog).getByText(/снова появится на странице записи/)).toBeTruthy();
+    expect(within(dialog).getByText(/Бронь сохранится в статусе «отменена»/)).toBeTruthy();
+    expect(cancelBooking).not.toHaveBeenCalled();
+  });
+
+  it("не отменяет встречу, когда подтверждение закрывают", async () => {
+    vi.mocked(listBookings).mockResolvedValue([upcomingBooking]);
+    const user = userEvent.setup();
+
+    renderOwner();
+    await openUpcomingTab();
+    const dialog = await openCancelDialog(user);
+    await user.click(within(dialog).getByRole("button", { name: "Отмена" }));
+
+    expect(cancelBooking).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.getByText("Анна Петрова")).toBeTruthy();
+  });
+
+  it("отменяет встречу, убирает строку и перезагружает список", async () => {
+    vi.mocked(listBookings).mockResolvedValueOnce([upcomingBooking]).mockResolvedValueOnce([]);
+    vi.mocked(cancelBooking).mockResolvedValue({
+      ...upcomingBooking,
+      status: "cancelled",
+    });
+    const user = userEvent.setup();
+
+    renderOwner();
+    await openUpcomingTab();
+    const dialog = await openCancelDialog(user);
+    await user.click(within(dialog).getByRole("button", { name: "Отменить" }));
+
+    expect(cancelBooking).toHaveBeenCalledWith(upcomingBooking.id);
+    expect(await screen.findByText("Пока нет предстоящих встреч")).toBeTruthy();
+    expect(screen.queryByText("Анна Петрова")).toBeNull();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(listBookings).toHaveBeenCalledTimes(2);
+  });
+
+  it("блокирует кнопку подтверждения на время запроса", async () => {
+    vi.mocked(listBookings).mockResolvedValue([upcomingBooking]);
+    vi.mocked(cancelBooking).mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+
+    renderOwner();
+    await openUpcomingTab();
+    const dialog = await openCancelDialog(user);
+    const confirm = within(dialog).getByRole("button", { name: "Отменить" });
+    await user.click(confirm);
+    await user.click(confirm);
+
+    expect(confirm.hasAttribute("disabled")).toBe(true);
+    expect(cancelBooking).toHaveBeenCalledTimes(1);
+  });
+
+  it("сообщает, что встречу уже нельзя отменить, и перезагружает список", async () => {
+    vi.mocked(listBookings).mockResolvedValueOnce([upcomingBooking]).mockResolvedValue([]);
+    vi.mocked(cancelBooking).mockRejectedValue(
+      new ApiError("BOOKING_NOT_CANCELLABLE", "Эту встречу уже нельзя отменить"),
+    );
+    const user = userEvent.setup();
+
+    renderOwner();
+    await openUpcomingTab();
+    const dialog = await openCancelDialog(user);
+    await user.click(within(dialog).getByRole("button", { name: "Отменить" }));
+
+    expect(
+      await screen.findByText("Эту встречу уже нельзя отменить — список обновлён."),
+    ).toBeTruthy();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(listBookings).toHaveBeenCalledTimes(2);
+  });
+
+  it("оставляет подтверждение открытым и показывает сетевую ошибку", async () => {
+    vi.mocked(listBookings).mockResolvedValue([upcomingBooking]);
+    vi.mocked(cancelBooking).mockRejectedValue(
+      new ApiError("NETWORK_ERROR", "Не удалось связаться с сервером"),
+    );
+    const user = userEvent.setup();
+
+    renderOwner();
+    await openUpcomingTab();
+    const dialog = await openCancelDialog(user);
+    await user.click(within(dialog).getByRole("button", { name: "Отменить" }));
 
     expect(await within(dialog).findByRole("alert")).toBeTruthy();
     expect(within(dialog).getByText("Не удалось связаться с сервером")).toBeTruthy();

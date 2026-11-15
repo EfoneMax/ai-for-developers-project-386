@@ -389,3 +389,109 @@ describe("GET /api/bookings", () => {
     expect(items.map((item) => item.start)).toEqual(["2026-11-12T09:00:00.000Z"]);
   });
 });
+
+function cancel(app: ReturnType<typeof createApp>, id: string) {
+  return app.inject({ method: "POST", url: `/api/bookings/${id}/cancel` });
+}
+
+async function listSlots(app: ReturnType<typeof createApp>, meetingTypeId: string) {
+  const response = await app.inject({
+    method: "GET",
+    url: `/api/meeting-types/${meetingTypeId}/slots`,
+  });
+
+  return (response.json() as { slots: { start: string }[] }).slots;
+}
+
+describe("POST /api/bookings/{id}/cancel", () => {
+  it("отменяет подтверждённую бронь и отдаёт её в статусе cancelled", async () => {
+    const app = buildApp();
+    const meetingType = await createMeetingType(app, { name: "Созвон по проекту" });
+    const created = (
+      await book(app, {
+        meetingTypeId: meetingType.id,
+        start: "2026-11-13T06:00:00.000Z",
+        guest: { name: "Анна", email: "anna@example.com", comment: "Позвонить" },
+      })
+    ).json() as Booking;
+
+    const response = await cancel(app, created.id);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ ...created, status: "cancelled" });
+  });
+
+  it("отвечает 404 BOOKING_NOT_FOUND на неизвестную бронь", async () => {
+    const app = buildApp();
+
+    const response = await cancel(app, "11111111-1111-4111-8111-111111111111");
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: { code: "BOOKING_NOT_FOUND", message: expect.any(String) },
+    });
+  });
+
+  it("отвечает 409 BOOKING_NOT_CANCELLABLE на повторную отмену", async () => {
+    const app = buildApp();
+    const meetingType = await createMeetingType(app);
+    const created = (
+      await book(app, { meetingTypeId: meetingType.id, start: "2026-11-13T06:00:00.000Z" })
+    ).json() as Booking;
+    await cancel(app, created.id);
+
+    const response = await cancel(app, created.id);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      error: { code: "BOOKING_NOT_CANCELLABLE", message: expect.any(String) },
+    });
+  });
+
+  it.each([
+    {
+      title: "встреча уже закончилась",
+      start: "2026-11-10T06:00:00.000Z",
+      end: "2026-11-10T06:30:00.000Z",
+    },
+    {
+      title: "встреча заканчивается ровно сейчас",
+      start: "2026-11-12T08:45:00.000Z",
+      end: "2026-11-12T09:15:00.000Z",
+    },
+  ])("отвечает 409 BOOKING_NOT_CANCELLABLE, когда $title", async ({ start, end }) => {
+    const booking = seededBooking({ start, end });
+    const app = buildApp({ seed: [booking] });
+
+    const response = await cancel(app, booking.id);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ error: { code: "BOOKING_NOT_CANCELLABLE" } });
+  });
+
+  it("освобождает слот для новой брони", async () => {
+    const app = buildApp();
+    const meetingType = await createMeetingType(app);
+    const start = "2026-11-13T06:00:00.000Z";
+    const created = (await book(app, { meetingTypeId: meetingType.id, start })).json() as Booking;
+    expect((await listSlots(app, meetingType.id)).map((slot) => slot.start)).not.toContain(start);
+
+    await cancel(app, created.id);
+
+    expect((await listSlots(app, meetingType.id)).map((slot) => slot.start)).toContain(start);
+    const again = await book(app, { meetingTypeId: meetingType.id, start });
+    expect(again.statusCode).toBe(201);
+  });
+
+  it("убирает отменённую бронь из предстоящих", async () => {
+    const app = buildApp();
+    const meetingType = await createMeetingType(app);
+    const created = (
+      await book(app, { meetingTypeId: meetingType.id, start: "2026-11-13T06:00:00.000Z" })
+    ).json() as Booking;
+
+    await cancel(app, created.id);
+
+    expect((await listBookings(app)).json()).toEqual({ items: [] });
+  });
+});

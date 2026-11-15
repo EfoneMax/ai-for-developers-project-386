@@ -321,6 +321,12 @@ model BookingResponse {
   @body body: Booking;
 }
 
+/** Ответ на отмену брони: та же бронь в статусе `cancelled`. */
+model BookingCancelResponse {
+  @statusCode statusCode: 200;
+  @body body: Booking;
+}
+
 /** Стабильный код ошибки API; интерфейс принимает решения по нему. */
 enum ErrorCode {
   /** Неверные поля тела запроса или параметры запроса. */
@@ -331,6 +337,12 @@ enum ErrorCode {
 
   /** Выбранное время уже занято другой бронью. */
   SLOT_TAKEN: "SLOT_TAKEN",
+
+  /** Запрошенная бронь не существует. */
+  BOOKING_NOT_FOUND: "BOOKING_NOT_FOUND",
+
+  /** Бронь уже отменена или её время уже прошло. */
+  BOOKING_NOT_CANCELLABLE: "BOOKING_NOT_CANCELLABLE",
 
   /** Запрошенный ресурс не существует. */
   NOT_FOUND: "NOT_FOUND",
@@ -446,3 +458,20 @@ op createBooking(@body body: BookingCreate): BookingResponse | ErrorResponse;
 @route("/bookings")
 @get
 op listBookings(): BookingListResponse | ErrorResponse;
+
+/**
+ * Отмена брони владельцем.
+ *
+ * Единственный переход `confirmed → cancelled`: запись сохраняется, снимок
+ * типа и время не пересчитываются, отменённая бронь освобождает слот.
+ * Отменить можно, пока `end > now`; уже отменённая или прошедшая бронь
+ * отвечает 409 `BOOKING_NOT_CANCELLABLE`, неизвестный `id` — 404
+ * `BOOKING_NOT_FOUND`.
+ */
+@tag("Bookings")
+@route("/bookings/{id}/cancel")
+@post
+op cancelBooking(
+  /** Идентификатор брони. */
+  @path id: string,
+): BookingCancelResponse | ErrorResponse;

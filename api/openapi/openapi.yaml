@@ -103,6 +103,57 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
       tags:
         - Bookings
+  /api/bookings/{id}/cancel:
+    post:
+      operationId: cancelBooking
+      description: |-
+        Отмена брони владельцем.
+
+        Единственный переход `confirmed → cancelled`: запись сохраняется, снимок
+        типа и время не пересчитываются, отменённая бронь освобождает слот.
+        Отменить можно, пока `end > now`; уже отменённая или прошедшая бронь
+        отвечает 409 `BOOKING_NOT_CANCELLABLE`, неизвестный `id` — 404
+        `BOOKING_NOT_FOUND`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор брони.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'Ответ на отмену брони: та же бронь в статусе `cancelled`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Bookings
   /api/health:
     get:
       operationId: getHealth
@@ -529,6 +580,8 @@ components:
         - VALIDATION_ERROR
         - MEETING_TYPE_NOT_FOUND
         - SLOT_TAKEN
+        - BOOKING_NOT_FOUND
+        - BOOKING_NOT_CANCELLABLE
         - NOT_FOUND
         - INTERNAL_ERROR
       description: Стабильный код ошибки API; интерфейс принимает решения по нему.
