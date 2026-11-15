@@ -6,6 +6,7 @@ import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import { registerBookingsRoutes } from "./bookings/routes.js";
 import { createBookingsStore, type BookingsStore } from "./bookings/store.js";
 import { apiError } from "./errors.js";
+import { seedDefaultMeetingTypes } from "./meeting-types/defaults.js";
 import { createMeetingTypesStore, type MeetingTypesStore } from "./meeting-types/store.js";
 import { registerMeetingTypesRoutes } from "./meeting-types/routes.js";
 import { registerSlotsRoutes } from "./slots/routes.js";
@@ -20,6 +21,11 @@ export interface CreateAppOptions {
    * так API-тесты не зависят от сборки `web/dist`.
    */
   webRoot?: string | false;
+  /**
+   * Заводит стартовые типы встреч в пустом хранилище. Включается только
+   * в точке входа, чтобы API-тесты создавали ровно нужные им данные.
+   */
+  seedDefaults?: boolean;
 }
 
 /** Собранный фронтенд лежит рядом с репозиторием и в образе: `web/dist`. */
@@ -89,6 +95,10 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const meetingTypes = options.store ?? createMeetingTypesStore();
   const bookings = options.bookingsStore ?? createBookingsStore();
   const now = options.now ?? (() => new Date());
+
+  if (options.seedDefaults === true) {
+    seedDefaultMeetingTypes(meetingTypes, now());
+  }
 
   registerMeetingTypesRoutes(app, { store: meetingTypes, now });
   registerSlotsRoutes(app, { meetingTypes, bookings, now });
