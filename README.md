@@ -60,16 +60,24 @@
 ## Запуск и проверки
 
 ```bash
-mise run setup   # зависимости, OpenAPI и SDK, Git-хуки
-mise run dev     # API и фронтенд как daemons
-mise run check   # линтеры, типы, тесты и сборка — то же, что в CI
+mise run setup      # зависимости, OpenAPI и SDK, Git-хуки
+mise run dev        # API и фронтенд как daemons
+mise run check      # линтеры, типы, тесты и сборка — быстрый job CI
 mise run check:e2e  # сборка и браузерные сценарии Playwright
 ```
+
+`mise run check` не запускает браузер: он укладывается в минуты и выполняется
+перед пушем. `mise run check:e2e` собирает проект, поднимает Fastify и
+preview-сборку фронтенда и прогоняет Playwright с одним воркером.
 
 API — `http://localhost:3000`, фронтенд — `http://localhost:5173`.
 Кабинет владельца — `http://localhost:5173/owner`, он открыт без входа.
 Остановить фоновые сервисы: `mise daemons stop`.
-CI запускается на push в `main` и на pull request.
+
+CI повторяет этот порядок двумя job: сначала быстрый `check`, затем `e2e` с
+зависимостью от него. Оба job запускаются на pull request и push в `main`.
+`e2e` ставит только Chromium, ограничен 20 минутами и при падении сохраняет
+трейсы Playwright артефактом. Pre-push hook выполняет только `mise run check`.
 
 ## Ограничения
 
