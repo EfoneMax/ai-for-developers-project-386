@@ -47,7 +47,7 @@ npm run ui:add -- button  # добавить компонент shadcn/ui
 - `scripts/` — проверки целостности и commitlint.
 - `mise.toml` — версии инструментов, задачи, hooks и daemons.
 - `hk.pkl` — Git-хуки: линтер и форматтер, commitlint, проверки перед push.
-- `opencode.json` — MCP-сервер shadcn.
+- `opencode.json` — MCP-серверы shadcn и Railway.
 - `.agents/skills/` и `skills-lock.json` — проектные скиллы и их версии.
   Глобальные скиллы OpenCode могут перекрывать одноимённые проектные.
 - `CODING_STANDARDS.md` — правила ревью.
