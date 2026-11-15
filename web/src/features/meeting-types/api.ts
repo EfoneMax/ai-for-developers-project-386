@@ -1,8 +1,15 @@
 import {
   createMeetingType as createMeetingTypeRequest,
+  deleteMeetingType as deleteMeetingTypeRequest,
   listMeetingTypes as listMeetingTypesRequest,
+  updateMeetingType as updateMeetingTypeRequest,
 } from "@/client/sdk.gen";
-import type { MeetingType, MeetingTypeCreate, MeetingTypeList } from "@/client/types.gen";
+import type {
+  MeetingType,
+  MeetingTypeCreate,
+  MeetingTypeList,
+  MeetingTypeUpdate,
+} from "@/client/types.gen";
 import { toApiError } from "@/lib/api-error";
 
 export { ApiError } from "@/lib/api-error";
@@ -10,10 +17,13 @@ export { ApiError } from "@/lib/api-error";
 /** Размер страницы, который запрашивают экраны: каталог целиком. */
 const MEETING_TYPES_LIMIT = 100;
 
-/** Загружает каталог типов встреч целиком одной страницей. */
-export async function listMeetingTypes(): Promise<MeetingTypeList> {
+/** Загружает каталог типов встреч целиком одной страницей, при необходимости с поиском. */
+export async function listMeetingTypes(params: { search?: string } = {}): Promise<MeetingTypeList> {
   const { data, error } = await listMeetingTypesRequest({
-    query: { limit: MEETING_TYPES_LIMIT },
+    query: {
+      limit: MEETING_TYPES_LIMIT,
+      ...(params.search === undefined || params.search === "" ? {} : { search: params.search }),
+    },
     throwOnError: false,
   });
 
@@ -33,4 +43,34 @@ export async function createMeetingType(input: MeetingTypeCreate): Promise<Meeti
   }
 
   throw toApiError(error);
+}
+
+/** Меняет переданные поля типа встречи; остальные остаются как были. */
+export async function updateMeetingType(
+  id: string,
+  input: MeetingTypeUpdate,
+): Promise<MeetingType> {
+  const { data, error } = await updateMeetingTypeRequest({
+    path: { id },
+    body: input,
+    throwOnError: false,
+  });
+
+  if (data !== undefined) {
+    return data;
+  }
+
+  throw toApiError(error);
+}
+
+/**
+ * Удаляет тип встречи. Существующие брони сохраняют снимок и продолжают
+ * занимать своё время, поэтому удаление разрешено всегда.
+ */
+export async function deleteMeetingType(id: string): Promise<void> {
+  const { error } = await deleteMeetingTypeRequest({ path: { id }, throwOnError: false });
+
+  if (error !== undefined) {
+    throw toApiError(error);
+  }
 }
