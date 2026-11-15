@@ -103,14 +103,7 @@ export default function BookingsList() {
 
   return (
     <div className="grid gap-4">
-      {notice === undefined ? null : (
-        <p
-          role="alert"
-          className="rounded-2xl border border-[#c25b4a]/30 bg-[#fbe9e5] px-5 py-4 text-sm font-medium text-[#7a2f22]"
-        >
-          {notice}
-        </p>
-      )}
+      {notice === undefined ? null : <ErrorBanner title={notice} />}
 
       {state.status === "loading" ? <BookingsSkeleton /> : null}
 
@@ -118,7 +111,7 @@ export default function BookingsList() {
         <ErrorBanner title="Не удалось загрузить предстоящие встречи" onRetry={reload} />
       ) : null}
 
-      {state.status === "ready" && state.items.length === 0 ? (
+      {state.status === "ready" && state.data.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#17231d]/20 bg-white/60 px-6 py-10 text-center">
           <span className="mx-auto grid size-12 place-items-center rounded-full bg-[#e6efe8] text-[#2f6b4f]">
             <CalendarClock className="size-6" />
@@ -132,14 +125,14 @@ export default function BookingsList() {
         </div>
       ) : null}
 
-      {state.status === "ready" && state.items.length > 0 ? (
+      {state.status === "ready" && state.data.length > 0 ? (
         <>
           <p className="text-sm text-[#4b5a51]">
             Время указано в московском поясе. Отменить встречу можно из строки — слот снова станет
             доступен гостю.
           </p>
           <ul className="grid gap-3">
-            {state.items.map((booking) => (
+            {state.data.map((booking) => (
               <BookingRow
                 key={booking.id}
                 booking={booking}

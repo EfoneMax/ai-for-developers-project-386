@@ -4,30 +4,20 @@ import {
   listBookings as listBookingsRequest,
 } from "@/client/sdk.gen";
 import type { Booking, BookingCreate } from "@/client/types.gen";
-import { toApiError } from "@/lib/api-error";
-
-export { ApiError } from "@/lib/api-error";
+import { unwrapData } from "@/lib/api-error";
 
 /** Создаёт бронь; сервер сам проверяет сетку, занятость и поля. */
 export async function createBooking(input: BookingCreate): Promise<Booking> {
-  const { data, error } = await createBookingRequest({ body: input, throwOnError: false });
+  const result = await createBookingRequest({ body: input, throwOnError: false });
 
-  if (data !== undefined) {
-    return data;
-  }
-
-  throw toApiError(error);
+  return unwrapData(result);
 }
 
 /** Загружает предстоящие брони владельца, отсортированные по началу. */
 export async function listBookings(): Promise<Booking[]> {
-  const { data, error } = await listBookingsRequest({ throwOnError: false });
+  const result = await listBookingsRequest({ throwOnError: false });
 
-  if (data !== undefined) {
-    return data.items;
-  }
-
-  throw toApiError(error);
+  return unwrapData(result).items;
 }
 
 /**
@@ -37,11 +27,7 @@ export async function listBookings(): Promise<Booking[]> {
  * иначе сервер отвечает `BOOKING_NOT_CANCELLABLE`.
  */
 export async function cancelBooking(id: string): Promise<Booking> {
-  const { data, error } = await cancelBookingRequest({ path: { id }, throwOnError: false });
+  const result = await cancelBookingRequest({ path: { id }, throwOnError: false });
 
-  if (data !== undefined) {
-    return data;
-  }
-
-  throw toApiError(error);
+  return unwrapData(result);
 }

@@ -10,7 +10,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ApiError, deleteMeetingType } from "./api";
+import { ApiError } from "@/lib/api-error";
+import { deleteMeetingType } from "./api";
 
 interface DeleteMeetingTypeDialogProps {
   meetingType: MeetingType;

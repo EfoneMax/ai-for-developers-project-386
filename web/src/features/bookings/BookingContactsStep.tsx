@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { ArrowLeft } from "lucide-react";
 import type { Booking, MeetingType, Slot } from "@/client/types.gen";
+import FieldError from "@/components/FieldError";
 import { Button } from "@/components/ui/button";
 import ErrorBanner from "@/components/ErrorBanner";
 import { Input } from "@/components/ui/input";
@@ -64,18 +65,6 @@ function validate(guest: GuestDraft): FieldErrors {
   }
 
   return errors;
-}
-
-function FieldError({ id, message }: { id: string; message?: string }) {
-  if (message === undefined) {
-    return null;
-  }
-
-  return (
-    <p id={id} aria-live="polite" className="text-xs font-medium text-destructive">
-      {message}
-    </p>
-  );
 }
 
 /**

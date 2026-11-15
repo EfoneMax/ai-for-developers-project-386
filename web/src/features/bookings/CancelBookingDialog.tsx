@@ -10,7 +10,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ApiError, cancelBooking } from "./api";
+import { ApiError } from "@/lib/api-error";
+import { cancelBooking } from "./api";
 import { formatMoscowDay, formatMoscowInterval } from "./format";
 
 interface CancelBookingDialogProps {

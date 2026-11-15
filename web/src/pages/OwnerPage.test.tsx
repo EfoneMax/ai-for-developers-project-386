@@ -4,13 +4,13 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import {
-  ApiError,
   createMeetingType,
   deleteMeetingType,
   listMeetingTypes,
   updateMeetingType,
 } from "@/features/meeting-types/api";
 import { listBookings } from "@/features/bookings/api";
+import { ApiError } from "@/lib/api-error";
 import type { Booking, MeetingType } from "@/client/types.gen";
 
 import { cancelBooking } from "@/features/bookings/api";

@@ -10,16 +10,14 @@ import type {
   MeetingTypeList,
   MeetingTypeUpdate,
 } from "@/client/types.gen";
-import { toApiError } from "@/lib/api-error";
-
-export { ApiError } from "@/lib/api-error";
+import { toApiError, unwrapData } from "@/lib/api-error";
 
 /** Размер страницы, который запрашивают экраны: каталог целиком. */
 const MEETING_TYPES_LIMIT = 100;
 
 /** Загружает каталог типов встреч целиком одной страницей, при необходимости с поиском. */
 export async function listMeetingTypes(params: { search?: string } = {}): Promise<MeetingTypeList> {
-  const { data, error } = await listMeetingTypesRequest({
+  const result = await listMeetingTypesRequest({
     query: {
       limit: MEETING_TYPES_LIMIT,
       ...(params.search === undefined || params.search === "" ? {} : { search: params.search }),
@@ -27,22 +25,14 @@ export async function listMeetingTypes(params: { search?: string } = {}): Promis
     throwOnError: false,
   });
 
-  if (data !== undefined) {
-    return data;
-  }
-
-  throw toApiError(error);
+  return unwrapData(result);
 }
 
 /** Создаёт тип встречи; сервер назначает id и время создания. */
 export async function createMeetingType(input: MeetingTypeCreate): Promise<MeetingType> {
-  const { data, error } = await createMeetingTypeRequest({ body: input, throwOnError: false });
+  const result = await createMeetingTypeRequest({ body: input, throwOnError: false });
 
-  if (data !== undefined) {
-    return data;
-  }
-
-  throw toApiError(error);
+  return unwrapData(result);
 }
 
 /** Меняет переданные поля типа встречи; остальные остаются как были. */
@@ -50,17 +40,13 @@ export async function updateMeetingType(
   id: string,
   input: MeetingTypeUpdate,
 ): Promise<MeetingType> {
-  const { data, error } = await updateMeetingTypeRequest({
+  const result = await updateMeetingTypeRequest({
     path: { id },
     body: input,
     throwOnError: false,
   });
 
-  if (data !== undefined) {
-    return data;
-  }
-
-  throw toApiError(error);
+  return unwrapData(result);
 }
 
 /**

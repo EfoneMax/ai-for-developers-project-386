@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import type { MeetingType } from "@/client/types.gen";
+import { useRemoteData, type RemoteState } from "@/lib/use-remote-data";
 import { listMeetingTypes } from "./api";
 
 /** Задержка между последним нажатием в поиске и запросом каталога. */
 const SEARCH_DEBOUNCE_MS = 300;
 
 /** Состояние загрузки каталога типов встреч. */
-export type MeetingTypesState =
-  | { status: "loading" }
-  | { status: "ready"; items: MeetingType[] }
-  | { status: "error" };
+export type MeetingTypesState = RemoteState<MeetingType[]>;
 
 /**
  * Загружает типы встреч и перезапрашивает каталог, когда меняется строка
@@ -23,8 +21,6 @@ export function useMeetingTypes(params: { search?: string } = {}): {
 } {
   const search = params.search ?? "";
   const [debouncedSearch, setDebouncedSearch] = useState(search);
-  const [state, setState] = useState<MeetingTypesState>({ status: "loading" });
-  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (search === debouncedSearch) {
@@ -40,30 +36,10 @@ export function useMeetingTypes(params: { search?: string } = {}): {
     };
   }, [search, debouncedSearch]);
 
-  useEffect(() => {
-    let active = true;
+  const load = useCallback(async () => {
+    const page = await listMeetingTypes({ search: debouncedSearch });
+    return page.items;
+  }, [debouncedSearch]);
 
-    listMeetingTypes({ search: debouncedSearch })
-      .then((page) => {
-        if (active) {
-          setState({ status: "ready", items: page.items });
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setState({ status: "error" });
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [debouncedSearch, attempt]);
-
-  const reload = useCallback(() => {
-    setState({ status: "loading" });
-    setAttempt((value) => value + 1);
-  }, []);
-
-  return { state, reload };
+  return useRemoteData(load, debouncedSearch);
 }

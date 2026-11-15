@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  ApiError,
-  createMeetingType,
-  deleteMeetingType,
-  listMeetingTypes,
-  updateMeetingType,
-} from "./api";
+import { ApiError } from "@/lib/api-error";
+import { createMeetingType, deleteMeetingType, listMeetingTypes, updateMeetingType } from "./api";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

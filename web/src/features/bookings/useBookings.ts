@@ -1,12 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import type { Booking } from "@/client/types.gen";
+import { useRemoteData, type RemoteState } from "@/lib/use-remote-data";
 import { listBookings } from "./api";
 
 /** Состояние загрузки предстоящих встреч владельца. */
-export type BookingsState =
-  | { status: "loading" }
-  | { status: "ready"; items: Booking[] }
-  | { status: "error" };
+export type BookingsState = RemoteState<Booking[]>;
 
 /**
  * Загружает предстоящие встречи один раз при открытии кабинета.
@@ -15,33 +13,7 @@ export type BookingsState =
  * сбоя, а после отмены список перезагрузится вместе с ней.
  */
 export function useBookings(): { state: BookingsState; reload: () => void } {
-  const [state, setState] = useState<BookingsState>({ status: "loading" });
-  const [attempt, setAttempt] = useState(0);
+  const load = useCallback(() => listBookings(), []);
 
-  useEffect(() => {
-    let active = true;
-
-    listBookings()
-      .then((items) => {
-        if (active) {
-          setState({ status: "ready", items });
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setState({ status: "error" });
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [attempt]);
-
-  const reload = useCallback(() => {
-    setState({ status: "loading" });
-    setAttempt((value) => value + 1);
-  }, []);
-
-  return { state, reload };
+  return useRemoteData(load, "upcoming");
 }

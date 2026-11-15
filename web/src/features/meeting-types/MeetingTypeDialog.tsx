@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import type { MeetingType } from "@/client/types.gen";
+import FieldError from "@/components/FieldError";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,7 +13,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError, createMeetingType, updateMeetingType } from "./api";
+import { ApiError } from "@/lib/api-error";
+import { createMeetingType, updateMeetingType } from "./api";
 
 const NAME_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 1000;
@@ -24,19 +26,6 @@ interface FieldErrors {
   name?: string;
   description?: string;
   durationMinutes?: string;
-}
-
-/** Сообщение об ошибке поля формы. */
-function FieldError({ id, message }: { id: string; message?: string }) {
-  if (message === undefined) {
-    return null;
-  }
-
-  return (
-    <p id={id} aria-live="polite" className="text-xs font-medium text-destructive">
-      {message}
-    </p>
-  );
 }
 
 function validate(name: string, description: string, duration: string): FieldErrors {

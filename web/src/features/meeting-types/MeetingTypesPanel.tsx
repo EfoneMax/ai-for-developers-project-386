@@ -78,14 +78,7 @@ export default function MeetingTypesPanel() {
       </div>
 
       <div className="mt-8 grid gap-4">
-        {catalogNotice === undefined ? null : (
-          <p
-            role="alert"
-            className="rounded-2xl border border-[#c25b4a]/30 bg-[#fbe9e5] px-5 py-4 text-sm font-medium text-[#7a2f22]"
-          >
-            {catalogNotice}
-          </p>
-        )}
+        {catalogNotice === undefined ? null : <ErrorBanner title={catalogNotice} />}
 
         {state.status === "loading" ? <MeetingTypeListSkeleton count={2} /> : null}
 
@@ -93,7 +86,7 @@ export default function MeetingTypesPanel() {
           <ErrorBanner title="Не удалось загрузить типы встреч" onRetry={reload} />
         ) : null}
 
-        {state.status === "ready" && state.items.length === 0 ? (
+        {state.status === "ready" && state.data.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#17231d]/20 bg-white/60 px-6 py-10 text-center">
             <h2 className="text-xl font-semibold tracking-[-0.02em] text-[#17231d]">
               {searching ? "Ничего не найдено" : "Пока нет типов встреч"}
@@ -106,9 +99,9 @@ export default function MeetingTypesPanel() {
           </div>
         ) : null}
 
-        {state.status === "ready" && state.items.length > 0 ? (
+        {state.status === "ready" && state.data.length > 0 ? (
           <ul className="grid gap-4">
-            {state.items.map((meetingType) => (
+            {state.data.map((meetingType) => (
               <li key={meetingType.id}>
                 <Card className="rounded-2xl border-white/60 bg-white/70 shadow-none">
                   <CardHeader>
