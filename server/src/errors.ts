@@ -2,6 +2,7 @@
 export type ApiErrorCode =
   | "VALIDATION_ERROR"
   | "MEETING_TYPE_NOT_FOUND"
+  | "SLOT_TAKEN"
   | "NOT_FOUND"
   | "INTERNAL_ERROR";
 

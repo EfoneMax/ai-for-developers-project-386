@@ -150,6 +150,111 @@ model SlotListResponse {
   @body body: SlotList;
 }
 
+/**
+ * Контактные данные гостя в брони.
+ *
+ * Гость не учётная запись: у него нет id, подтверждения email и списка
+ * своих броней.
+ */
+model Guest {
+  /** Имя, от 1 до 100 символов после удаления пробелов по краям. */
+  @minLength(1)
+  @maxLength(100)
+  name: string;
+
+  /** Email до 254 символов с базовой проверкой формата. */
+  @maxLength(254)
+  @format("email")
+  email: string;
+
+  /** Комментарий до 1000 символов. Пустой комментарий не возвращается. */
+  @maxLength(1000)
+  comment?: string;
+}
+
+/** Снимок типа встречи на момент создания брони (ADR-0006). */
+model BookingMeetingType {
+  /** Идентификатор исходного типа; тип может быть уже удалён. */
+  @format("uuid")
+  id: string;
+
+  /** Название типа на момент записи. */
+  @minLength(1)
+  @maxLength(100)
+  name: string;
+
+  /** Длительность встречи в минутах на момент записи. */
+  @minValue(5)
+  @maxValue(240)
+  durationMinutes: int32;
+}
+
+/** Статус брони: подтверждённая занимает слот, отменённая — нет. */
+enum BookingStatus {
+  /** Бронь действует. */
+  confirmed: "confirmed",
+
+  /** Бронь отменена владельцем. */
+  cancelled: "cancelled",
+}
+
+/**
+ * Бронь — подтверждённое гостем право занять слот вместе с контактами.
+ *
+ * Хранит снимок типа встречи, поэтому правка или удаление типа не меняет
+ * уже созданную бронь.
+ */
+model Booking {
+  /** Идентификатор, назначает сервер; в интерфейсе не показывается. */
+  @format("uuid")
+  id: string;
+
+  /** Статус брони. */
+  status: BookingStatus;
+
+  /** Снимок типа встречи на момент записи. */
+  meetingType: BookingMeetingType;
+
+  /** Начало встречи в UTC, ISO 8601. */
+  start: utcDateTime;
+
+  /** Конец встречи в UTC; равен началу плюс длительность из снимка. */
+  end: utcDateTime;
+
+  /** Контактные данные гостя. */
+  guest: Guest;
+}
+
+/** Поля создания брони. */
+model BookingCreate {
+  /** Идентификатор типа встречи из каталога. */
+  meetingTypeId: string;
+
+  /** Желаемое начало встречи в UTC, ISO 8601. */
+  start: utcDateTime;
+
+  /** Контактные данные гостя. */
+  guest: Guest;
+}
+
+/** Предстоящие брони владельца. */
+model BookingList {
+  /** Предстоящие брони, отсортированные по началу. */
+  items: Booking[];
+}
+
+/** Ответ со списком предстоящих броней. */
+model BookingListResponse {
+  @statusCode statusCode: 200;
+  @body body: BookingList;
+}
+
+/** Ответ на создание брони. */
+model BookingResponse {
+  @statusCode statusCode: 201;
+  @body body: Booking;
+}
+
 /** Стабильный код ошибки API; интерфейс принимает решения по нему. */
 enum ErrorCode {
   /** Неверные поля тела запроса или параметры запроса. */
@@ -157,6 +262,9 @@ enum ErrorCode {
 
   /** Запрошенный тип встречи не существует. */
   MEETING_TYPE_NOT_FOUND: "MEETING_TYPE_NOT_FOUND",
+
+  /** Выбранное время уже занято другой бронью. */
+  SLOT_TAKEN: "SLOT_TAKEN",
 
   /** Запрошенный ресурс не существует. */
   NOT_FOUND: "NOT_FOUND",
@@ -188,7 +296,7 @@ model ErrorBody {
 
 /** Конверт ошибки API (ADR-0005). */
 model ErrorResponse {
-  @statusCode statusCode: 400 | 404 | 500;
+  @statusCode statusCode: 400 | 404 | 409 | 500;
   @body body: ErrorBody;
 }
 
@@ -218,3 +326,27 @@ op listMeetingTypeSlots(
   /** Идентификатор типа встречи. */
   @path id: string,
 ): SlotListResponse | ErrorResponse;
+
+/**
+ * Создание брони.
+ *
+ * Сервер заново проверяет сетку, рабочий день, окно записи, `start > now`
+ * и `end ≤ 18:00`, не доверяя ответу доступности. Проверка занятости и
+ * вставка брони идут синхронно, поэтому из двух одновременных запросов
+ * на один слот успешно проходит ровно один.
+ */
+@tag("Bookings")
+@route("/bookings")
+@post
+op createBooking(@body body: BookingCreate): BookingResponse | ErrorResponse;
+
+/**
+ * Предстоящие брони владельца.
+ *
+ * Только подтверждённые брони, которые ещё не закончились, по возрастанию
+ * начала. Отменённые и прошедшие брони в список не попадают.
+ */
+@tag("Bookings")
+@route("/bookings")
+@get
+op listBookings(): BookingListResponse | ErrorResponse;

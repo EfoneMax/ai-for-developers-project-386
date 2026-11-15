@@ -10,7 +10,99 @@ info:
 tags:
   - name: Health
   - name: Meeting Types
+  - name: Bookings
 paths:
+  /api/bookings:
+    post:
+      operationId: createBooking
+      description: |-
+        Создание брони.
+
+        Сервер заново проверяет сетку, рабочий день, окно записи, `start > now`
+        и `end ≤ 18:00`, не доверяя ответу доступности. Проверка занятости и
+        вставка брони идут синхронно, поэтому из двух одновременных запросов
+        на один слот успешно проходит ровно один.
+      parameters: []
+      responses:
+        '201':
+          description: Ответ на создание брони.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Bookings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreate'
+    get:
+      operationId: listBookings
+      description: |-
+        Предстоящие брони владельца.
+
+        Только подтверждённые брони, которые ещё не закончились, по возрастанию
+        начала. Отменённые и прошедшие брони в список не попадают.
+      parameters: []
+      responses:
+        '200':
+          description: Ответ со списком предстоящих броней.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingList'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Bookings
   /api/health:
     get:
       operationId: getHealth
@@ -53,6 +145,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
         '500':
           description: Конверт ошибки API (ADR-0005).
           content:
@@ -79,6 +177,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorBody'
         '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
           description: Конверт ошибки API (ADR-0005).
           content:
             application/json:
@@ -133,6 +237,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
         '500':
           description: Конверт ошибки API (ADR-0005).
           content:
@@ -167,6 +277,104 @@ components:
         default: 1
       explode: false
   schemas:
+    Booking:
+      type: object
+      required:
+        - id
+        - status
+        - meetingType
+        - start
+        - end
+        - guest
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Идентификатор, назначает сервер; в интерфейсе не показывается.
+        status:
+          allOf:
+            - $ref: '#/components/schemas/BookingStatus'
+          description: Статус брони.
+        meetingType:
+          allOf:
+            - $ref: '#/components/schemas/BookingMeetingType'
+          description: Снимок типа встречи на момент записи.
+        start:
+          type: string
+          format: date-time
+          description: Начало встречи в UTC, ISO 8601.
+        end:
+          type: string
+          format: date-time
+          description: Конец встречи в UTC; равен началу плюс длительность из снимка.
+        guest:
+          allOf:
+            - $ref: '#/components/schemas/Guest'
+          description: Контактные данные гостя.
+      description: |-
+        Бронь — подтверждённое гостем право занять слот вместе с контактами.
+
+        Хранит снимок типа встречи, поэтому правка или удаление типа не меняет
+        уже созданную бронь.
+    BookingCreate:
+      type: object
+      required:
+        - meetingTypeId
+        - start
+        - guest
+      properties:
+        meetingTypeId:
+          type: string
+          description: Идентификатор типа встречи из каталога.
+        start:
+          type: string
+          format: date-time
+          description: Желаемое начало встречи в UTC, ISO 8601.
+        guest:
+          allOf:
+            - $ref: '#/components/schemas/Guest'
+          description: Контактные данные гостя.
+      description: Поля создания брони.
+    BookingList:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Booking'
+          description: Предстоящие брони, отсортированные по началу.
+      description: Предстоящие брони владельца.
+    BookingMeetingType:
+      type: object
+      required:
+        - id
+        - name
+        - durationMinutes
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Идентификатор исходного типа; тип может быть уже удалён.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Название типа на момент записи.
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 5
+          maximum: 240
+          description: Длительность встречи в минутах на момент записи.
+      description: Снимок типа встречи на момент создания брони (ADR-0006).
+    BookingStatus:
+      type: string
+      enum:
+        - confirmed
+        - cancelled
+      description: 'Статус брони: подтверждённая занимает слот, отменённая — нет.'
     ErrorBody:
       type: object
       required:
@@ -191,6 +399,7 @@ components:
       enum:
         - VALIDATION_ERROR
         - MEETING_TYPE_NOT_FOUND
+        - SLOT_TAKEN
         - NOT_FOUND
         - INTERNAL_ERROR
       description: Стабильный код ошибки API; интерфейс принимает решения по нему.
@@ -207,6 +416,31 @@ components:
           type: string
           description: Русский текст ошибки для показа рядом с полем.
       description: Ошибка конкретного поля запроса.
+    Guest:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Имя, от 1 до 100 символов после удаления пробелов по краям.
+        email:
+          type: string
+          maxLength: 254
+          format: email
+          description: Email до 254 символов с базовой проверкой формата.
+        comment:
+          type: string
+          maxLength: 1000
+          description: Комментарий до 1000 символов. Пустой комментарий не возвращается.
+      description: |-
+        Контактные данные гостя в брони.
+
+        Гость не учётная запись: у него нет id, подтверждения email и списка
+        своих броней.
     HealthBody:
       type: object
       required:

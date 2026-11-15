@@ -1,3 +1,5 @@
+import { overlaps, type Interval } from "../domain/bookings.js";
+
 /** Слот — интервал, который гость может забронировать. */
 export interface Slot {
   /** Начало слота в UTC, ISO 8601. */
@@ -42,9 +44,14 @@ function isWorkday(dayStart: number): boolean {
  *
  * Окно — 14 дат от сегодняшней московской; выходные пропускаются и окно
  * не продлевают. Старты идут от 09:00 с шагом 30 минут, встреча должна
- * закончиться не позже 18:00.
+ * закончиться не позже 18:00. Слоты, пересекающиеся с занятыми интервалами,
+ * не возвращаются; примыкание к занятому интервалу разрешено.
  */
-export function generateSlots(durationMinutes: number, now: Date): Slot[] {
+export function generateSlots(
+  durationMinutes: number,
+  now: Date,
+  busy: readonly Interval[] = [],
+): Slot[] {
   const firstDay = startOfMoscowDay(now);
   const slots: Slot[] = [];
 
@@ -66,12 +73,29 @@ export function generateSlots(durationMinutes: number, now: Date): Slot[] {
         continue;
       }
 
-      slots.push({
+      const slot = {
         start: new Date(start).toISOString(),
         end: new Date(start + durationMinutes * MS_PER_MINUTE).toISOString(),
-      });
+      };
+
+      if (busy.some((interval) => overlaps(slot, interval))) {
+        continue;
+      }
+
+      slots.push(slot);
     }
   }
 
   return slots;
+}
+
+/**
+ * Проверяет, что запрошенный старт попадает в допустимую сетку записи.
+ *
+ * Сервер не доверяет клиенту: здесь заново проверяются шаг 30 минут от 09:00,
+ * рабочий день, граница окна, `start > now` и `end ≤ 18:00` — ровно те же
+ * правила, по которым строится ответ доступности.
+ */
+export function isBookableStart(start: string, durationMinutes: number, now: Date): boolean {
+  return generateSlots(durationMinutes, now).some((slot) => slot.start === start);
 }

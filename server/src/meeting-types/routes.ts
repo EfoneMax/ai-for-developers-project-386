@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type { BookingsStore } from "../bookings/store.js";
 import { generateSlots } from "../domain/slots.js";
 import { apiError, validationError } from "../errors.js";
 import type { MeetingTypesStore } from "./store.js";
@@ -7,6 +8,7 @@ import { parseCreateMeetingType, parseListQuery } from "./validation.js";
 /** Зависимости маршрутов типов встреч. */
 export interface MeetingTypesRoutesOptions {
   store: MeetingTypesStore;
+  bookings: BookingsStore;
   now: () => Date;
 }
 
@@ -42,6 +44,12 @@ export function registerMeetingTypesRoutes(
       return reply.status(404).send(apiError("MEETING_TYPE_NOT_FOUND", "Тип встречи не найден"));
     }
 
-    return { slots: generateSlots(meetingType.durationMinutes, options.now()) };
+    return {
+      slots: generateSlots(
+        meetingType.durationMinutes,
+        options.now(),
+        options.bookings.busyIntervals(),
+      ),
+    };
   });
 }
