@@ -1,4 +1,5 @@
 import {
+  cancelBooking as cancelBookingRequest,
   createBooking as createBookingRequest,
   listBookings as listBookingsRequest,
 } from "@/client/sdk.gen";
@@ -24,6 +25,22 @@ export async function listBookings(): Promise<Booking[]> {
 
   if (data !== undefined) {
     return data.items;
+  }
+
+  throw toApiError(error);
+}
+
+/**
+ * Отменяет бронь; слот снова становится доступен гостю.
+ *
+ * Отменить можно только подтверждённую бронь, которая ещё не закончилась:
+ * иначе сервер отвечает `BOOKING_NOT_CANCELLABLE`.
+ */
+export async function cancelBooking(id: string): Promise<Booking> {
+  const { data, error } = await cancelBookingRequest({ path: { id }, throwOnError: false });
+
+  if (data !== undefined) {
+    return data;
   }
 
   throw toApiError(error);
