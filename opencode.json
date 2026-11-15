@@ -5,6 +5,10 @@
         "type": "local",
         "command": ["npx", "shadcn@4.23.0", "mcp"],
         "cwd": "web"
+      },
+      "railway": {
+        "type": "remote",
+        "url": "https://mcp.railway.com"
       }
     }
   },

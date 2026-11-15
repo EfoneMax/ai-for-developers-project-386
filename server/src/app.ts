@@ -1,3 +1,7 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import { registerBookingsRoutes } from "./bookings/routes.js";
 import { createBookingsStore, type BookingsStore } from "./bookings/store.js";
@@ -11,6 +15,16 @@ export interface CreateAppOptions {
   store?: MeetingTypesStore;
   bookingsStore?: BookingsStore;
   now?: () => Date;
+  /**
+   * Каталог собранного фронтенда. `false` отключает раздачу статики —
+   * так API-тесты не зависят от сборки `web/dist`.
+   */
+  webRoot?: string | false;
+}
+
+/** Собранный фронтенд лежит рядом с репозиторием и в образе: `web/dist`. */
+function defaultWebRoot(): string {
+  return fileURLToPath(new URL("../../web/dist", import.meta.url));
 }
 
 /**
@@ -26,7 +40,30 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     logger: options.logger ?? false,
   });
 
-  app.setNotFoundHandler((_request, reply) => {
+  const webRoot = options.webRoot ?? defaultWebRoot();
+  // В production Fastify отдаёт и API, и собранный SPA с одного origin:
+  // клиент ходит в /api без отдельного адреса бэкенда.
+  const servesWeb = webRoot !== false && existsSync(resolve(webRoot, "index.html"));
+
+  if (servesWeb) {
+    app.register(fastifyStatic, {
+      root: webRoot,
+      prefix: "/",
+      setHeaders(reply, filePath) {
+        // index.html ссылается на хешированные assets: его нельзя кэшировать надолго.
+        if (filePath.endsWith("index.html")) {
+          reply.header("cache-control", "no-cache");
+        }
+      },
+    });
+  }
+
+  app.setNotFoundHandler((request, reply) => {
+    // Клиентские маршруты React (/owner, /book) отдают тот же index.html.
+    if (servesWeb && request.method === "GET" && !request.url.startsWith("/api/")) {
+      return reply.sendFile("index.html");
+    }
+
     return reply.status(404).send(apiError("NOT_FOUND", "Маршрут не найден"));
   });
 
