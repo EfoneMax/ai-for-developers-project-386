@@ -15,7 +15,7 @@ const WORKDAY_START_MINUTES = 9 * 60;
 const WORKDAY_END_MINUTES = 18 * 60;
 
 /** Окно записи — 14 московских календарных дат, включая сегодняшнюю. */
-export const BOOKING_WINDOW_DAYS = 14;
+const BOOKING_WINDOW_DAYS = 14;
 
 const MS_PER_MINUTE = 60_000;
 const MS_PER_DAY = 24 * 60 * MS_PER_MINUTE;
