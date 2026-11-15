@@ -1,3 +1,4 @@
+import type { MeetingTypeListParams, MeetingTypeSortField, SortOrder } from "./store.js";
 import type { ParseResult, ValidationIssue } from "../validation.js";
 
 /** Ограничения полей типа встречи из контракта. */
@@ -13,6 +14,11 @@ const LIMIT_MAX = 100;
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
+const DEFAULT_SORT: MeetingTypeSortField = "createdAt";
+const DEFAULT_ORDER: SortOrder = "asc";
+
+const SORT_FIELDS: readonly MeetingTypeSortField[] = ["createdAt", "name", "durationMinutes"];
+const SORT_ORDERS: readonly SortOrder[] = ["asc", "desc"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -58,13 +64,96 @@ export function parseCreateMeetingType(body: unknown): ParseResult<{
 }
 
 /**
+ * Проверяет тело частичного изменения типа встречи. Клиент передаёт
+ * непустое подмножество `name`, `description` и `durationMinutes` с теми же
+ * правилами, что при создании; `id` и `createdAt` неизменяемы.
+ */
+export function parseUpdateMeetingType(body: unknown): ParseResult<{
+  name?: string;
+  description?: string | null;
+  durationMinutes?: number;
+}> {
+  if (!isRecord(body)) {
+    return {
+      ok: false,
+      issues: [{ field: "body", message: "Ожидается объект с полями типа встречи" }],
+    };
+  }
+
+  const issues: ValidationIssue[] = [];
+
+  if ("id" in body) {
+    issues.push({ field: "id", message: "Идентификатор назначает сервер, менять его нельзя" });
+  }
+
+  if ("createdAt" in body) {
+    issues.push({
+      field: "createdAt",
+      message: "Время создания назначает сервер, менять его нельзя",
+    });
+  }
+
+  const name = body.name === undefined ? undefined : parseName(body.name, issues);
+  const description = parseDescriptionUpdate(body, issues);
+  const durationMinutes =
+    body.durationMinutes === undefined ? undefined : parseDuration(body.durationMinutes, issues);
+
+  if (issues.length > 0) {
+    return { ok: false, issues };
+  }
+
+  if (name === undefined && description === undefined && durationMinutes === undefined) {
+    return {
+      ok: false,
+      issues: [
+        {
+          field: "body",
+          message: "Передайте хотя бы одно поле: name, description или durationMinutes",
+        },
+      ],
+    };
+  }
+
+  return {
+    ok: true,
+    value: {
+      ...(name === undefined ? {} : { name }),
+      ...(description === undefined ? {} : { description }),
+      ...(durationMinutes === undefined ? {} : { durationMinutes }),
+    },
+  };
+}
+
+function parseDescriptionUpdate(
+  body: Record<string, unknown>,
+  issues: ValidationIssue[],
+): string | null | undefined {
+  if (body.description === undefined) {
+    return undefined;
+  }
+
+  if (typeof body.description !== "string") {
+    issues.push({ field: "description", message: "Описание должно быть строкой" });
+    return undefined;
+  }
+
+  const trimmed = body.description.trim();
+  if (trimmed.length > DESCRIPTION_MAX_LENGTH) {
+    issues.push({
+      field: "description",
+      message: `Описание — не больше ${DESCRIPTION_MAX_LENGTH} символов`,
+    });
+    return undefined;
+  }
+
+  return trimmed.length === 0 ? null : trimmed;
+}
+
+/**
  * Проверяет параметры страницы списка типов встреч. Отсутствующие
  * параметры заменяются значениями по умолчанию из контракта.
  */
-export function parseListQuery(query: { page?: unknown; limit?: unknown }): ParseResult<{
-  page: number;
-  limit: number;
-}> {
+export function parseListQuery(query: Record<string, unknown>): ParseResult<MeetingTypeListParams> {
   const issues: ValidationIssue[] = [];
   const page = readInteger({
     value: query.page,
@@ -82,12 +171,74 @@ export function parseListQuery(query: { page?: unknown; limit?: unknown }): Pars
     issue: { field: "limit", message: `Размер страницы — целое число от 1 до ${LIMIT_MAX}` },
     issues,
   });
+  const sort = readEnum({
+    value: query.sort,
+    fallback: DEFAULT_SORT,
+    allowed: SORT_FIELDS,
+    issue: { field: "sort", message: "Сортировка — createdAt, name или durationMinutes" },
+    issues,
+  });
+  const order = readEnum({
+    value: query.order,
+    fallback: DEFAULT_ORDER,
+    allowed: SORT_ORDERS,
+    issue: { field: "order", message: "Порядок — asc или desc" },
+    issues,
+  });
+  const search = readSearch(query.search, issues);
 
   if (issues.length > 0) {
     return { ok: false, issues };
   }
 
-  return { ok: true, value: { page, limit } };
+  return {
+    ok: true,
+    value: {
+      page,
+      limit,
+      sort,
+      order,
+      ...(search === undefined ? {} : { search }),
+    },
+  };
+}
+
+function readSearch(value: unknown, issues: ValidationIssue[]): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    issues.push({ field: "search", message: "Поиск — одна строка" });
+    return undefined;
+  }
+
+  return value === "" ? undefined : value;
+}
+
+function readEnum<T extends string>({
+  value,
+  fallback,
+  allowed,
+  issue,
+  issues,
+}: {
+  value: unknown;
+  fallback: T;
+  allowed: readonly T[];
+  issue: ValidationIssue;
+  issues: ValidationIssue[];
+}): T {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value !== "string" || !allowed.includes(value as T)) {
+    issues.push(issue);
+    return fallback;
+  }
+
+  return value as T;
 }
 
 function parseName(value: unknown, issues: ValidationIssue[]): string | undefined {

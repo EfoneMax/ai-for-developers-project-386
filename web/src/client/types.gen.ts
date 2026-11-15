@@ -208,11 +208,11 @@ export type MeetingTypeCreate = {
  */
 export type MeetingTypeList = {
     /**
-     * Типы встреч на текущей странице, от старых к новым.
+     * Типы встреч на текущей странице.
      */
     items: Array<MeetingType>;
     /**
-     * Общее количество типов встреч.
+     * Общее количество типов встреч с учётом поиска.
      */
     total: number;
     /**
@@ -223,6 +223,32 @@ export type MeetingTypeList = {
      * Размер страницы, от 1 до 100.
      */
     limit: number;
+};
+
+/**
+ * Поле сортировки списка типов встреч.
+ */
+export type MeetingTypeSort = 'createdAt' | 'name' | 'durationMinutes';
+
+/**
+ * Поля частичного изменения типа встречи.
+ *
+ * Передайте непустое подмножество полей; `id` и `createdAt` неизменяемы.
+ * Пустая строка в `description` убирает описание.
+ */
+export type MeetingTypeUpdate = {
+    /**
+     * Название, от 1 до 100 символов после удаления пробелов по краям.
+     */
+    name?: string;
+    /**
+     * Описание, до 1000 символов; пустая строка убирает описание.
+     */
+    description?: string;
+    /**
+     * Длительность встречи в минутах, от 5 до 240.
+     */
+    durationMinutes?: number;
 };
 
 /**
@@ -253,14 +279,34 @@ export type SlotList = {
 };
 
 /**
+ * Направление сортировки списка.
+ */
+export type SortOrder = 'asc' | 'desc';
+
+/**
  * Размер страницы, от 1 до 100. По умолчанию 20.
  */
 export type MeetingTypeListQueryLimit = number;
 
 /**
+ * Направление сортировки. По умолчанию `asc`.
+ */
+export type MeetingTypeListQueryOrder = SortOrder;
+
+/**
  * Номер страницы, начиная с 1. По умолчанию 1.
  */
 export type MeetingTypeListQueryPage = number;
+
+/**
+ * Подстрока без учёта регистра по названию и описанию.
+ */
+export type MeetingTypeListQuerySearch = string;
+
+/**
+ * Поле сортировки. По умолчанию `createdAt`.
+ */
+export type MeetingTypeListQuerySort = MeetingTypeSort;
 
 export type ListBookingsData = {
     body?: never;
@@ -364,6 +410,18 @@ export type ListMeetingTypesData = {
          * Размер страницы, от 1 до 100. По умолчанию 20.
          */
         limit?: number;
+        /**
+         * Поле сортировки. По умолчанию `createdAt`.
+         */
+        sort?: MeetingTypeSort;
+        /**
+         * Направление сортировки. По умолчанию `asc`.
+         */
+        order?: SortOrder;
+        /**
+         * Подстрока без учёта регистра по названию и описанию.
+         */
+        search?: string;
     };
     url: '/api/meeting-types';
 };
@@ -434,6 +492,90 @@ export type CreateMeetingTypeResponses = {
 };
 
 export type CreateMeetingTypeResponse = CreateMeetingTypeResponses[keyof CreateMeetingTypeResponses];
+
+export type DeleteMeetingTypeData = {
+    body?: never;
+    path: {
+        /**
+         * Идентификатор типа встречи.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/meeting-types/{id}';
+};
+
+export type DeleteMeetingTypeErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type DeleteMeetingTypeError = DeleteMeetingTypeErrors[keyof DeleteMeetingTypeErrors];
+
+export type DeleteMeetingTypeResponses = {
+    /**
+     * Ответ на удаление типа встречи: тела нет.
+     */
+    204: void;
+};
+
+export type DeleteMeetingTypeResponse = DeleteMeetingTypeResponses[keyof DeleteMeetingTypeResponses];
+
+export type UpdateMeetingTypeData = {
+    body: MeetingTypeUpdate;
+    path: {
+        /**
+         * Идентификатор типа встречи.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/meeting-types/{id}';
+};
+
+export type UpdateMeetingTypeErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type UpdateMeetingTypeError = UpdateMeetingTypeErrors[keyof UpdateMeetingTypeErrors];
+
+export type UpdateMeetingTypeResponses = {
+    /**
+     * Ответ на изменение типа встречи.
+     */
+    200: MeetingType;
+};
+
+export type UpdateMeetingTypeResponse = UpdateMeetingTypeResponses[keyof UpdateMeetingTypeResponses];
 
 export type ListMeetingTypeSlotsData = {
     body?: never;

@@ -3,7 +3,7 @@ import type { BookingsStore } from "../bookings/store.js";
 import { generateSlots } from "../domain/slots.js";
 import { apiError, validationError } from "../errors.js";
 import type { MeetingTypesStore } from "./store.js";
-import { parseCreateMeetingType, parseListQuery } from "./validation.js";
+import { parseCreateMeetingType, parseListQuery, parseUpdateMeetingType } from "./validation.js";
 
 /** Зависимости маршрутов типов встреч. */
 export interface MeetingTypesRoutesOptions {
@@ -38,10 +38,41 @@ export function registerMeetingTypesRoutes(
     return reply.status(201).send(options.store.create(parsed.value, options.now()));
   });
 
+  app.patch<{ Params: { id: string }; Body: unknown }>(
+    "/api/meeting-types/:id",
+    async (request, reply) => {
+      if (options.store.get(request.params.id) === undefined) {
+        return reply.status(404).send(meetingTypeNotFound());
+      }
+
+      const parsed = parseUpdateMeetingType(request.body);
+      if (!parsed.ok) {
+        return reply.status(400).send(validationError(parsed.issues));
+      }
+
+      const updated = options.store.update(request.params.id, parsed.value);
+      if (updated === undefined) {
+        return reply.status(404).send(meetingTypeNotFound());
+      }
+
+      return updated;
+    },
+  );
+
+  app.delete<{ Params: { id: string } }>("/api/meeting-types/:id", async (request, reply) => {
+    const removed = options.store.remove(request.params.id);
+
+    if (!removed) {
+      return reply.status(404).send(meetingTypeNotFound());
+    }
+
+    return reply.status(204).send();
+  });
+
   app.get<{ Params: { id: string } }>("/api/meeting-types/:id/slots", async (request, reply) => {
     const meetingType = options.store.get(request.params.id);
     if (meetingType === undefined) {
-      return reply.status(404).send(apiError("MEETING_TYPE_NOT_FOUND", "Тип встречи не найден"));
+      return reply.status(404).send(meetingTypeNotFound());
     }
 
     return {
@@ -52,4 +83,8 @@ export function registerMeetingTypesRoutes(
       ),
     };
   });
+}
+
+function meetingTypeNotFound() {
+  return apiError("MEETING_TYPE_NOT_FOUND", "Тип встречи не найден");
 }

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateBookingData, CreateBookingErrors, CreateBookingResponses, CreateMeetingTypeData, CreateMeetingTypeErrors, CreateMeetingTypeResponses, GetHealthData, GetHealthResponses, ListBookingsData, ListBookingsErrors, ListBookingsResponses, ListMeetingTypesData, ListMeetingTypesErrors, ListMeetingTypeSlotsData, ListMeetingTypeSlotsErrors, ListMeetingTypeSlotsResponses, ListMeetingTypesResponses } from './types.gen';
+import type { CreateBookingData, CreateBookingErrors, CreateBookingResponses, CreateMeetingTypeData, CreateMeetingTypeErrors, CreateMeetingTypeResponses, DeleteMeetingTypeData, DeleteMeetingTypeErrors, DeleteMeetingTypeResponses, GetHealthData, GetHealthResponses, ListBookingsData, ListBookingsErrors, ListBookingsResponses, ListMeetingTypesData, ListMeetingTypesErrors, ListMeetingTypeSlotsData, ListMeetingTypeSlotsErrors, ListMeetingTypeSlotsResponses, ListMeetingTypesResponses, UpdateMeetingTypeData, UpdateMeetingTypeErrors, UpdateMeetingTypeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -58,6 +58,30 @@ export const listMeetingTypes = <ThrowOnError extends boolean = false>(options?:
  */
 export const createMeetingType = <ThrowOnError extends boolean = false>(options: Options<CreateMeetingTypeData, ThrowOnError>): RequestResult<CreateMeetingTypeResponses, CreateMeetingTypeErrors, ThrowOnError> => (options.client ?? client).post<CreateMeetingTypeResponses, CreateMeetingTypeErrors, ThrowOnError>({
     url: '/api/meeting-types',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Удаление типа встречи.
+ *
+ * Разрешено всегда, в том числе при предстоящих бронях: существующие брони
+ * сохраняют снимок и продолжают занимать своё время. Неизвестный тип — 404.
+ */
+export const deleteMeetingType = <ThrowOnError extends boolean = false>(options: Options<DeleteMeetingTypeData, ThrowOnError>): RequestResult<DeleteMeetingTypeResponses, DeleteMeetingTypeErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMeetingTypeResponses, DeleteMeetingTypeErrors, ThrowOnError>({ url: '/api/meeting-types/{id}', ...options });
+
+/**
+ * Частичное изменение типа встречи.
+ *
+ * Меняет непустое подмножество `name`, `description` и `durationMinutes`
+ * с теми же правилами, что при создании; `id` и `createdAt` неизменяемы.
+ * Неизвестный тип — 404 `MEETING_TYPE_NOT_FOUND`.
+ */
+export const updateMeetingType = <ThrowOnError extends boolean = false>(options: Options<UpdateMeetingTypeData, ThrowOnError>): RequestResult<UpdateMeetingTypeResponses, UpdateMeetingTypeErrors, ThrowOnError> => (options.client ?? client).patch<UpdateMeetingTypeResponses, UpdateMeetingTypeErrors, ThrowOnError>({
+    url: '/api/meeting-types/{id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',

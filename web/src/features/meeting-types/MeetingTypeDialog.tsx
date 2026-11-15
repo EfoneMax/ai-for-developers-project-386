@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import type { MeetingType } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -7,12 +8,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError, createMeetingType } from "./api";
+import { ApiError, createMeetingType, updateMeetingType } from "./api";
 
 const NAME_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 1000;
@@ -61,36 +61,39 @@ function validate(name: string, description: string, duration: string): FieldErr
   return errors;
 }
 
+interface MeetingTypeDialogProps {
+  /** Тип для правки; при создании не передаётся. */
+  meetingType?: MeetingType;
+  /** Вызывается после успешного сохранения — каталог перезагружается. */
+  onSaved: () => void;
+  /** Вызывается, когда тип исчез: диалог закрывается, каталог обновляется. */
+  onNotFound: () => void;
+  /** Закрывает диалог без сохранения. */
+  onClose: () => void;
+}
+
 /**
- * Диалог создания типа встречи: проверяет поля на клиенте, раскладывает
- * серверные `details` по полям, блокирует кнопку на время запроса и
- * перезагружает каталог после успеха.
+ * Один диалог для создания и правки типа встречи.
+ *
+ * Проверяет поля на клиенте, раскладывает серверные `details` по полям,
+ * блокирует кнопку на время запроса и сообщает об успехе вызывающему экрану.
  */
-export default function CreateMeetingTypeDialog({ onCreated }: { onCreated: () => void }) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [duration, setDuration] = useState("30");
+export default function MeetingTypeDialog({
+  meetingType,
+  onSaved,
+  onNotFound,
+  onClose,
+}: MeetingTypeDialogProps) {
+  const [name, setName] = useState(meetingType?.name ?? "");
+  const [description, setDescription] = useState(meetingType?.description ?? "");
+  const [duration, setDuration] = useState(String(meetingType?.durationMinutes ?? 30));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [generalError, setGeneralError] = useState<string | undefined>();
   const [pending, setPending] = useState(false);
 
-  function resetForm() {
-    setName("");
-    setDescription("");
-    setDuration("30");
-    setErrors({});
-    setGeneralError(undefined);
-  }
-
   function handleOpenChange(next: boolean) {
-    if (pending) {
-      return;
-    }
-
-    setOpen(next);
-    if (!next) {
-      resetForm();
+    if (!next && !pending) {
+      onClose();
     }
   }
 
@@ -108,17 +111,31 @@ export default function CreateMeetingTypeDialog({ onCreated }: { onCreated: () =
     setPending(true);
 
     try {
+      const trimmedName = name.trim();
       const trimmedDescription = description.trim();
-      await createMeetingType({
-        name: name.trim(),
-        ...(trimmedDescription === "" ? {} : { description: trimmedDescription }),
-        durationMinutes: Number(duration.trim()),
-      });
+      const durationMinutes = Number(duration.trim());
 
-      resetForm();
-      setOpen(false);
-      onCreated();
+      if (meetingType === undefined) {
+        await createMeetingType({
+          name: trimmedName,
+          ...(trimmedDescription === "" ? {} : { description: trimmedDescription }),
+          durationMinutes,
+        });
+      } else {
+        await updateMeetingType(meetingType.id, {
+          name: trimmedName,
+          description: trimmedDescription,
+          durationMinutes,
+        });
+      }
+
+      onSaved();
     } catch (error) {
+      if (error instanceof ApiError && error.code === "MEETING_TYPE_NOT_FOUND") {
+        onNotFound();
+        return;
+      }
+
       if (error instanceof ApiError && error.code === "VALIDATION_ERROR") {
         setErrors({
           name: error.fieldError("name"),
@@ -127,7 +144,7 @@ export default function CreateMeetingTypeDialog({ onCreated }: { onCreated: () =
         });
       } else {
         setGeneralError(
-          error instanceof ApiError ? error.message : "Не удалось создать тип встречи",
+          error instanceof ApiError ? error.message : "Не удалось сохранить тип встречи",
         );
       }
     } finally {
@@ -135,16 +152,19 @@ export default function CreateMeetingTypeDialog({ onCreated }: { onCreated: () =
     }
   }
 
+  const editing = meetingType !== undefined;
+
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button type="button">Создать</Button>
-      </DialogTrigger>
+    <Dialog open onOpenChange={handleOpenChange}>
       <DialogContent>
         <form onSubmit={(event) => void handleSubmit(event)} noValidate>
           <DialogHeader>
-            <DialogTitle>Новый тип встречи</DialogTitle>
-            <DialogDescription>Созданный тип сразу появится на странице записи.</DialogDescription>
+            <DialogTitle>{editing ? "Изменить тип встречи" : "Новый тип встречи"}</DialogTitle>
+            <DialogDescription>
+              {editing
+                ? "Правка не меняет уже созданные брони: они сохраняют прежние название и длительность."
+                : "Созданный тип сразу появится на странице записи."}
+            </DialogDescription>
           </DialogHeader>
 
           {generalError === undefined ? null : (

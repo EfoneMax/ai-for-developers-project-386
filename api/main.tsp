@@ -83,12 +83,55 @@ model MeetingTypeCreate {
   durationMinutes: int32;
 }
 
+/**
+ * Поля частичного изменения типа встречи.
+ *
+ * Передайте непустое подмножество полей; `id` и `createdAt` неизменяемы.
+ * Пустая строка в `description` убирает описание.
+ */
+model MeetingTypeUpdate {
+  /** Название, от 1 до 100 символов после удаления пробелов по краям. */
+  @minLength(1)
+  @maxLength(100)
+  name?: string;
+
+  /** Описание, до 1000 символов; пустая строка убирает описание. */
+  @maxLength(1000)
+  description?: string;
+
+  /** Длительность встречи в минутах, от 5 до 240. */
+  @minValue(5)
+  @maxValue(240)
+  durationMinutes?: int32;
+}
+
+/** Поле сортировки списка типов встреч. */
+enum MeetingTypeSort {
+  /** По времени создания. */
+  createdAt: "createdAt",
+
+  /** По названию. */
+  name: "name",
+
+  /** По длительности встречи. */
+  durationMinutes: "durationMinutes",
+}
+
+/** Направление сортировки списка. */
+enum SortOrder {
+  /** По возрастанию. */
+  asc: "asc",
+
+  /** По убыванию. */
+  desc: "desc",
+}
+
 /** Страница списка типов встреч. */
 model MeetingTypeList {
-  /** Типы встреч на текущей странице, от старых к новым. */
+  /** Типы встреч на текущей странице. */
   items: MeetingType[];
 
-  /** Общее количество типов встреч. */
+  /** Общее количество типов встреч с учётом поиска. */
   total: int32;
 
   /** Номер текущей страницы, начиная с 1. */
@@ -110,6 +153,18 @@ model MeetingTypeListQuery {
   @minValue(1)
   @maxValue(100)
   limit?: int32 = 20;
+
+  /** Поле сортировки. По умолчанию `createdAt`. */
+  @query
+  sort?: MeetingTypeSort = MeetingTypeSort.createdAt;
+
+  /** Направление сортировки. По умолчанию `asc`. */
+  @query
+  order?: SortOrder = SortOrder.asc;
+
+  /** Подстрока без учёта регистра по названию и описанию. */
+  @query
+  search?: string;
 }
 
 /** Ответ со страницей типов встреч. */
@@ -122,6 +177,17 @@ model MeetingTypeListResponse {
 model MeetingTypeResponse {
   @statusCode statusCode: 201;
   @body body: MeetingType;
+}
+
+/** Ответ на изменение типа встречи. */
+model MeetingTypeUpdateResponse {
+  @statusCode statusCode: 200;
+  @body body: MeetingType;
+}
+
+/** Ответ на удаление типа встречи: тела нет. */
+model MeetingTypeDeleteResponse {
+  @statusCode statusCode: 204;
 }
 
 /**
@@ -311,6 +377,36 @@ op listMeetingTypes(...MeetingTypeListQuery): MeetingTypeListResponse | ErrorRes
 @route("/meeting-types")
 @post
 op createMeetingType(@body body: MeetingTypeCreate): MeetingTypeResponse | ErrorResponse;
+
+/**
+ * Частичное изменение типа встречи.
+ *
+ * Меняет непустое подмножество `name`, `description` и `durationMinutes`
+ * с теми же правилами, что при создании; `id` и `createdAt` неизменяемы.
+ * Неизвестный тип — 404 `MEETING_TYPE_NOT_FOUND`.
+ */
+@tag("Meeting Types")
+@route("/meeting-types/{id}")
+@patch
+op updateMeetingType(
+  /** Идентификатор типа встречи. */
+  @path id: string,
+  @body body: MeetingTypeUpdate,
+): MeetingTypeUpdateResponse | ErrorResponse;
+
+/**
+ * Удаление типа встречи.
+ *
+ * Разрешено всегда, в том числе при предстоящих бронях: существующие брони
+ * сохраняют снимок и продолжают занимать своё время. Неизвестный тип — 404.
+ */
+@tag("Meeting Types")
+@route("/meeting-types/{id}")
+@delete
+op deleteMeetingType(
+  /** Идентификатор типа встречи. */
+  @path id: string,
+): MeetingTypeDeleteResponse | ErrorResponse;
 
 /**
  * Свободные слоты типа встречи за всё окно записи.

@@ -1,9 +1,15 @@
 import { MemoryRouter } from "react-router-dom";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
-import { ApiError, createMeetingType, listMeetingTypes } from "@/features/meeting-types/api";
+import {
+  ApiError,
+  createMeetingType,
+  deleteMeetingType,
+  listMeetingTypes,
+  updateMeetingType,
+} from "@/features/meeting-types/api";
 import { listBookings } from "@/features/bookings/api";
 import type { Booking, MeetingType } from "@/client/types.gen";
 
@@ -18,6 +24,8 @@ vi.mock("@/features/meeting-types/api", async (importOriginal) => {
     ...actual,
     listMeetingTypes: vi.fn<typeof actual.listMeetingTypes>(),
     createMeetingType: vi.fn<typeof actual.createMeetingType>(),
+    updateMeetingType: vi.fn<typeof actual.updateMeetingType>(),
+    deleteMeetingType: vi.fn<typeof actual.deleteMeetingType>(),
   };
 });
 
@@ -93,6 +101,38 @@ describe("кабинет владельца: список типов встре�
     await user.click(screen.getByRole("button", { name: "Повторить" }));
 
     expect(await screen.findByRole("heading", { name: "Созвон по проекту" })).toBeTruthy();
+  });
+});
+
+describe("кабинет владельца: поиск по типам встреч", () => {
+  it("отправляет строку поиска в API с debounce, а не на каждое нажатие", async () => {
+    vi.mocked(listMeetingTypes).mockResolvedValue({ ...emptyPage, items: [meetingType], total: 1 });
+    const user = userEvent.setup();
+
+    renderOwner();
+    await screen.findByRole("heading", { name: "Созвон по проекту" });
+    expect(listMeetingTypes).toHaveBeenCalledTimes(1);
+
+    const search = screen.getByLabelText("Поиск");
+    await user.type(search, "п");
+    expect(listMeetingTypes).toHaveBeenCalledTimes(1);
+
+    await user.type(search, "роект");
+    await waitFor(() => {
+      expect(listMeetingTypes).toHaveBeenLastCalledWith({ search: "проект" });
+    });
+  });
+
+  it("показывает «Ничего не найдено», когда поиск не дал результатов", async () => {
+    vi.mocked(listMeetingTypes).mockResolvedValue(emptyPage);
+    const user = userEvent.setup();
+
+    renderOwner();
+    await screen.findByText("Пока нет типов встреч");
+    await user.type(screen.getByLabelText("Поиск"), "отпуск");
+
+    expect(await screen.findByText("Ничего не найдено")).toBeTruthy();
+    expect(screen.queryByText("Пока нет типов встреч")).toBeNull();
   });
 });
 
@@ -267,5 +307,197 @@ describe("кабинет владельца: предстоящие встреч
     await user.click(screen.getByRole("button", { name: "Повторить" }));
 
     expect(await screen.findByText("Анна Петрова")).toBeTruthy();
+  });
+});
+
+async function openRowActions(
+  user: ReturnType<typeof userEvent.setup>,
+  name = "Созвон по проекту",
+) {
+  await user.click(await screen.findByRole("button", { name: `Действия: ${name}` }));
+}
+
+describe("кабинет владельца: правка типа встречи", () => {
+  it("открывает из меню строки диалог с заполненными полями", async () => {
+    vi.mocked(listMeetingTypes).mockResolvedValue({ ...emptyPage, items: [meetingType], total: 1 });
+    const user = userEvent.setup();
+
+    renderOwner();
+    await screen.findByRole("heading", { name: "Созвон по проекту" });
+    await openRowActions(user);
+    await user.click(await screen.findByRole("menuitem", { name: "Изменить" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Изменить тип встречи" });
+    expect(within(dialog).getByLabelText<HTMLInputElement>("Название").value).toBe(
+      "Созвон по проекту",
+    );
+    expect(within(dialog).getByLabelText<HTMLTextAreaElement>("Описание").value).toBe(
+      "Обсудим сроки и объём работ",
+    );
+    expect(within(dialog).getByLabelText<HTMLInputElement>("Длительность, мин").value).toBe("45");
+  });
+
+  it("сохраняет изменения и перезагружает каталог", async () => {
+    const renamed = { ...meetingType, name: "Созвон по бюджету", durationMinutes: 60 };
+    vi.mocked(listMeetingTypes)
+      .mockResolvedValueOnce({ ...emptyPage, items: [meetingType], total: 1 })
+      .mockResolvedValue({ ...emptyPage, items: [renamed], total: 1 });
+    vi.mocked(updateMeetingType).mockResolvedValue(renamed);
+    const user = userEvent.setup();
+
+    renderOwner();
+    await screen.findByRole("heading", { name: "Созвон по проекту" });
+    await openRowActions(user);
+    await user.click(await screen.findByRole("menuitem", { name: "Изменить" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Изменить тип встречи" });
+    const name = within(dialog).getByLabelText("Название");
+    await user.clear(name);
+    await user.type(name, "Созвон по бюджету");
+    const duration = within(dialog).getByLabelText("Длительность, мин");
+    await user.clear(duration);
+    await user.type(duration, "60");
+    await user.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+
+    expect(updateMeetingType).toHaveBeenCalledWith(meetingType.id, {
+      name: "Созвон по бюджету",
+      description: "Обсудим сроки и объём работ",
+      durationMinutes: 60,
+    });
+    expect(await screen.findByRole("heading", { name: "Созвон по бюджету" })).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("показывает серверные ошибки под полями и оставляет диалог открытым", async () => {
+    vi.mocked(listMeetingTypes).mockResolvedValue({ ...emptyPage, items: [meetingType], total: 1 });
+    vi.mocked(updateMeetingType).mockRejectedValue(
+      new ApiError("VALIDATION_ERROR", "Проверьте заполнение полей", [
+        { field: "durationMinutes", message: "Сервер: длительность вне диапазона" },
+      ]),
+    );
+    const user = userEvent.setup();
+
+    renderOwner();
+    await screen.findByRole("heading", { name: "Созвон по проекту" });
+    await openRowActions(user);
+    await user.click(await screen.findByRole("menuitem", { name: "Изменить" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Изменить тип встречи" });
+    await user.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+
+    expect(await within(dialog).findByText("Сервер: длительность вне диапазона")).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Изменить тип встречи" })).toBeTruthy();
+  });
+
+  it("сообщает, что тип уже удалён, и перезагружает каталог", async () => {
+    vi.mocked(listMeetingTypes)
+      .mockResolvedValueOnce({ ...emptyPage, items: [meetingType], total: 1 })
+      .mockResolvedValue(emptyPage);
+    vi.mocked(updateMeetingType).mockRejectedValue(
+      new ApiError("MEETING_TYPE_NOT_FOUND", "Тип встречи не найден"),
+    );
+    const user = userEvent.setup();
+
+    renderOwner();
+    await screen.findByRole("heading", { name: "Созвон по проекту" });
+    await openRowActions(user);
+    await user.click(await screen.findByRole("menuitem", { name: "Изменить" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Изменить тип встречи" });
+    await user.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+
+    expect(await screen.findByText("Этот тип встречи уже удалён — каталог обновлён.")).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(listMeetingTypes).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("кабинет владельца: удаление типа встречи", () => {
+  async function openDeleteDialog(user: ReturnType<typeof userEvent.setup>) {
+    await openRowActions(user);
+    await user.click(await screen.findByRole("menuitem", { name: "Удалить" }));
+    return screen.findByRole("alertdialog", { name: "Удалить тип «Созвон по проекту»?" });
+  }
+
+  it("предупреждает, что существующие брони сохранятся", async () => {
+    vi.mocked(listMeetingTypes).mockResolvedValue({ ...emptyPage, items: [meetingType], total: 1 });
+    const user = userEvent.setup();
+
+    renderOwner();
+    await screen.findByRole("heading", { name: "Созвон по проекту" });
+    const dialog = await openDeleteDialog(user);
+
+    expect(
+      within(dialog).getByText(/брони сохранятся и сохранят прежние название и длительность/),
+    ).toBeTruthy();
+    expect(within(dialog).getByText(/исчезнет с публичной страницы/)).toBeTruthy();
+  });
+
+  it("удаляет тип, закрывает подтверждение и перезагружает каталог", async () => {
+    vi.mocked(listMeetingTypes)
+      .mockResolvedValueOnce({ ...emptyPage, items: [meetingType], total: 1 })
+      .mockResolvedValue(emptyPage);
+    vi.mocked(deleteMeetingType).mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    renderOwner();
+    await screen.findByRole("heading", { name: "Созвон по проекту" });
+    const dialog = await openDeleteDialog(user);
+    await user.click(within(dialog).getByRole("button", { name: "Удалить" }));
+
+    expect(deleteMeetingType).toHaveBeenCalledWith(meetingType.id);
+    expect(await screen.findByText("Пока нет типов встреч")).toBeTruthy();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(listMeetingTypes).toHaveBeenCalledTimes(2);
+  });
+
+  it("не удаляет тип, когда подтверждение отменяют", async () => {
+    vi.mocked(listMeetingTypes).mockResolvedValue({ ...emptyPage, items: [meetingType], total: 1 });
+    const user = userEvent.setup();
+
+    renderOwner();
+    await screen.findByRole("heading", { name: "Созвон по проекту" });
+    const dialog = await openDeleteDialog(user);
+    await user.click(within(dialog).getByRole("button", { name: "Отмена" }));
+
+    expect(deleteMeetingType).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Созвон по проекту" })).toBeTruthy();
+  });
+
+  it("сообщает, что тип уже удалён, и перезагружает каталог", async () => {
+    vi.mocked(listMeetingTypes)
+      .mockResolvedValueOnce({ ...emptyPage, items: [meetingType], total: 1 })
+      .mockResolvedValue(emptyPage);
+    vi.mocked(deleteMeetingType).mockRejectedValue(
+      new ApiError("MEETING_TYPE_NOT_FOUND", "Тип встречи не найден"),
+    );
+    const user = userEvent.setup();
+
+    renderOwner();
+    await screen.findByRole("heading", { name: "Созвон по проекту" });
+    const dialog = await openDeleteDialog(user);
+    await user.click(within(dialog).getByRole("button", { name: "Удалить" }));
+
+    expect(await screen.findByText("Этот тип встречи уже удалён — каталог обновлён.")).toBeTruthy();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(listMeetingTypes).toHaveBeenCalledTimes(2);
+  });
+
+  it("оставляет подтверждение открытым и показывает сетевую ошибку", async () => {
+    vi.mocked(listMeetingTypes).mockResolvedValue({ ...emptyPage, items: [meetingType], total: 1 });
+    vi.mocked(deleteMeetingType).mockRejectedValue(
+      new ApiError("NETWORK_ERROR", "Не удалось связаться с сервером"),
+    );
+    const user = userEvent.setup();
+
+    renderOwner();
+    await screen.findByRole("heading", { name: "Созвон по проекту" });
+    const dialog = await openDeleteDialog(user);
+    await user.click(within(dialog).getByRole("button", { name: "Удалить" }));
+
+    expect(await within(dialog).findByRole("alert")).toBeTruthy();
+    expect(within(dialog).getByText("Не удалось связаться с сервером")).toBeTruthy();
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
   });
 });
