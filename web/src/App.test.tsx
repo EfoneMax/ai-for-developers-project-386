@@ -1,8 +1,14 @@
 import { MemoryRouter } from "react-router-dom";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { listMeetingTypes } from "@/features/meeting-types/api";
+
+vi.mock("@/features/meeting-types/api", () => ({
+  listMeetingTypes: vi.fn<typeof import("@/features/meeting-types/api").listMeetingTypes>(),
+  createMeetingType: vi.fn<typeof import("@/features/meeting-types/api").createMeetingType>(),
+}));
 
 function renderAt(path: string) {
   return render(
@@ -17,6 +23,10 @@ const entryPoints = [
   { section: "hero", scope: "main", name: "Записаться" },
   { section: "final", scope: "main", name: "Выбрать время" },
 ] as const;
+
+beforeEach(() => {
+  vi.mocked(listMeetingTypes).mockResolvedValue({ items: [], total: 0, page: 1, limit: 100 });
+});
 
 afterEach(() => {
   cleanup();
@@ -42,21 +52,21 @@ describe("landing page", () => {
 
       await user.click(within(screen.getByRole(scope)).getByRole("link", { name }));
 
-      expect(screen.getByRole("heading", { name: "Страница записи скоро появится" })).toBeTruthy();
+      expect(screen.getByRole("heading", { name: "Выберите тип встречи" })).toBeTruthy();
     },
   );
 
   it("opens the booking page directly at /book", () => {
     renderAt("/book");
 
-    expect(screen.getByRole("heading", { name: "Страница записи скоро появится" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Выберите тип встречи" })).toBeTruthy();
   });
 
   it("returns from the booking page to the landing page", async () => {
     const user = userEvent.setup();
     renderAt("/book");
 
-    await user.click(screen.getByRole("link", { name: "На главную" }));
+    await user.click(await screen.findByRole("link", { name: "На главную" }));
 
     expect(screen.getByRole("heading", { name: "Запись на звонок без переписки" })).toBeTruthy();
   });
@@ -68,5 +78,6 @@ describe("landing page", () => {
     renderAt("/");
 
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(listMeetingTypes).not.toHaveBeenCalled();
   });
 });
