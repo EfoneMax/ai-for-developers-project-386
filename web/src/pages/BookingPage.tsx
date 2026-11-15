@@ -11,7 +11,7 @@ import BookingSlotStep from "@/features/slots/BookingSlotStep";
 import { getMoscowWindowDays } from "@/features/slots/moscow-days";
 
 interface BookingPageProps {
-  /** Серверные часы не нужны: окно считается по московской дате, но тесты подставляют своё время. */
+  /** Момент, от которого отсчитывается окно записи; по умолчанию — текущий. */
   now?: () => Date;
 }
 

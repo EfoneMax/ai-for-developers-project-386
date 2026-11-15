@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ArrowLeft, CalendarX } from "lucide-react";
-import type { MeetingType, Slot } from "@/client/types.gen";
+import type { MeetingType } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import ErrorBanner from "@/components/ErrorBanner";
 import type { MoscowDay } from "./moscow-days";
@@ -77,7 +77,7 @@ export default function BookingSlotStep({ meetingType, days, onBack }: BookingSl
           selectedDayKey={selectedDayKey}
           onSelectDay={setSelectedDayKey}
           selectedSlotStart={selectedSlotStart}
-          onSelectSlot={(slot: Slot) => {
+          onSelectSlot={(slot) => {
             setSelectedSlotStart(slot.start);
           }}
         />
