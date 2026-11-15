@@ -1,17 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, CalendarX } from "lucide-react";
 import type { MeetingType, Slot } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import ErrorBanner from "@/components/ErrorBanner";
-import type { MoscowDay } from "./moscow-days";
-import { moscowDateKey } from "./moscow-days";
+import { getMoscowWindowDays, moscowDateKey, withSlotDays } from "./moscow-days";
 import SlotCalendar from "./SlotCalendar";
 import SlotListSkeleton from "./SlotListSkeleton";
 import { useSlots } from "./useSlots";
 
 interface BookingSlotStepProps {
   meetingType: MeetingType;
-  days: MoscowDay[];
+  /** Часы клиента: от них строится окно; ответ сервера дополняет его датами. */
+  now: () => Date;
   timeZone: string;
   onTimeZoneChange: (timeZone: string) => void;
   /** Сообщение над календарём: например, слот только что заняли. */
@@ -20,6 +20,8 @@ interface BookingSlotStepProps {
   initialSlotStart?: string | null;
   onBack: () => void;
   onContinue: (slot: Slot) => void;
+  /** Тип встречи исчез: гость возвращается к списку типов. */
+  onMeetingTypeGone: () => void;
 }
 
 /**
@@ -28,16 +30,19 @@ interface BookingSlotStepProps {
  * Слот задан абсолютным моментом UTC, поэтому смена пояса только
  * перерисовывает время и не сбрасывает выбор. Список слотов загружается
  * заново при монтировании шага, в том числе после конфликта бронирования.
+ * Дни календаря пересчитываются при загрузке слотов: окно клиента
+ * объединяется с московскими датами из ответа, чтобы ни один слот не пропал.
  */
 export default function BookingSlotStep({
   meetingType,
-  days,
+  now,
   timeZone,
   onTimeZoneChange,
   notice,
   initialSlotStart,
   onBack,
   onContinue,
+  onMeetingTypeGone,
 }: BookingSlotStepProps) {
   const { state, reload } = useSlots(meetingType.id);
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(
@@ -49,9 +54,22 @@ export default function BookingSlotStep({
     initialSlotStart ?? null,
   );
 
+  // Дни считаются при каждом рендере: окно строится по часам клиента,
+  // а даты пришедших слотов добавляются к нему, поэтому ни один слот не теряется.
+  const windowDays = getMoscowWindowDays(now());
+  const days = state.status === "ready" ? withSlotDays(windowDays, state.data) : windowDays;
+
+  const missingType = state.status === "error" && state.code === "MEETING_TYPE_NOT_FOUND";
+
+  useEffect(() => {
+    if (missingType) {
+      onMeetingTypeGone();
+    }
+  }, [missingType, onMeetingTypeGone]);
+
   const selectedSlot =
     state.status === "ready"
-      ? state.slots.find((slot) => slot.start === selectedSlotStart)
+      ? state.data.find((slot) => slot.start === selectedSlotStart)
       : undefined;
 
   return (
@@ -74,24 +92,19 @@ export default function BookingSlotStep({
 
       {notice === undefined ? null : (
         <div className="mt-6">
-          <p
-            role="alert"
-            className="rounded-2xl border border-[#c25b4a]/30 bg-[#fbe9e5] px-5 py-4 text-sm font-medium text-[#7a2f22]"
-          >
-            {notice}
-          </p>
+          <ErrorBanner title={notice} />
         </div>
       )}
 
       {state.status === "loading" ? <SlotListSkeleton /> : null}
 
-      {state.status === "error" ? (
+      {state.status === "error" && !missingType ? (
         <div className="mt-8">
           <ErrorBanner title="Не удалось загрузить слоты" onRetry={reload} />
         </div>
       ) : null}
 
-      {state.status === "ready" && state.slots.length === 0 ? (
+      {state.status === "ready" && state.data.length === 0 ? (
         <div className="mt-8 rounded-3xl border border-white/60 bg-white/80 p-8 text-center shadow-[0_30px_80px_rgba(40,55,46,0.12)] sm:p-12">
           <span className="mx-auto grid size-12 place-items-center rounded-full bg-[#e6efe8] text-[#2f6b4f]">
             <CalendarX className="size-6" />
@@ -106,11 +119,11 @@ export default function BookingSlotStep({
         </div>
       ) : null}
 
-      {state.status === "ready" && state.slots.length > 0 ? (
+      {state.status === "ready" && state.data.length > 0 ? (
         <>
           <SlotCalendar
             days={days}
-            slots={state.slots}
+            slots={state.data}
             timeZone={timeZone}
             onTimeZoneChange={onTimeZoneChange}
             selectedDayKey={selectedDayKey}

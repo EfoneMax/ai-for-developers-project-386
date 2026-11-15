@@ -52,6 +52,22 @@ export function moscowDateKey(instant: string | Date): string {
 }
 
 /**
+ * Подпись и признаки дня по ключу `YYYY-MM-DD`. Ключ — московская дата,
+ * поэтому день недели читается в UTC без повторной конвертации.
+ */
+function moscowDay(key: string): MoscowDay {
+  const date = new Date(`${key}T00:00:00Z`);
+  const weekday = date.getUTCDay();
+
+  return {
+    key,
+    weekday: weekdayFormatter.format(date),
+    dateLabel: dateLabelFormatter.format(date),
+    isWeekend: weekday === 0 || weekday === 6,
+  };
+}
+
+/**
  * Все даты окна записи: 14 подряд идущих московских дат от сегодняшней.
  * Выходные входят в окно и не продлевают его.
  */
@@ -63,15 +79,29 @@ export function getMoscowWindowDays(now: Date): MoscowDay[] {
 
   return Array.from({ length: BOOKING_WINDOW_DAYS }, (_, index) => {
     const date = new Date(Date.UTC(year, month - 1, day + index));
-    const weekday = date.getUTCDay();
 
-    return {
-      key: date.toISOString().slice(0, 10),
-      weekday: weekdayFormatter.format(date),
-      dateLabel: dateLabelFormatter.format(date),
-      isWeekend: weekday === 0 || weekday === 6,
-    };
+    return moscowDay(date.toISOString().slice(0, 10));
   });
+}
+
+/**
+ * Дни календаря: окно клиента плюс все московские даты из ответа сервера.
+ *
+ * Часы браузера и сервера могут расходиться, а окно сдвигается в московскую
+ * полночь, поэтому день, которого нет в клиентском окне, всё равно получает
+ * кнопку — иначе пришедший слот выглядел бы скрытым.
+ */
+export function withSlotDays(days: MoscowDay[], slots: Slot[]): MoscowDay[] {
+  const byKey = new Map(days.map((day) => [day.key, day]));
+
+  for (const slot of slots) {
+    const key = moscowDateKey(slot.start);
+    if (!byKey.has(key)) {
+      byKey.set(key, moscowDay(key));
+    }
+  }
+
+  return [...byKey.values()].sort((a, b) => a.key.localeCompare(b.key));
 }
 
 /**

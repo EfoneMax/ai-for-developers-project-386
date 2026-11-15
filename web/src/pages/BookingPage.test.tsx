@@ -1,5 +1,5 @@
 import { MemoryRouter } from "react-router-dom";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
@@ -248,6 +248,38 @@ describe("шаг выбора дня и слота", () => {
     await user.click(screen.getByRole("button", { name: "Повторить" }));
 
     expect(await screen.findByRole("group", { name: "День" })).toBeTruthy();
+  });
+
+  it("возвращает к списку типов с сообщением, если тип встречи исчез", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listMeetingTypeSlots).mockRejectedValue(
+      new ApiError("MEETING_TYPE_NOT_FOUND", "Тип встречи не найден"),
+    );
+    renderBookingPage();
+
+    await chooseMeetingType(user);
+
+    expect(await screen.findByRole("heading", { name: "Выберите тип встречи" })).toBeTruthy();
+    expect(screen.getByText(/тип встречи больше недоступен/i)).toBeTruthy();
+    expect(screen.queryByText("Не удалось загрузить слоты")).toBeNull();
+  });
+
+  it("добавляет в календарь день слота за пределами клиентского окна", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listMeetingTypeSlots).mockResolvedValue([
+      { start: "2026-11-26T06:00:00.000Z", end: "2026-11-26T06:30:00.000Z" },
+    ]);
+    renderBookingPage();
+
+    await chooseMeetingType(user);
+
+    await waitFor(() => {
+      expect(dayGroup().getAllByRole("button")).toHaveLength(15);
+    });
+    const buttons = dayGroup().getAllByRole("button");
+    const extraDay = buttons.find((button) => button.textContent?.includes("26 нояб."));
+
+    expect(extraDay?.hasAttribute("disabled")).toBe(false);
   });
 
   it("возвращает к выбору типа по кнопке «Назад»", async () => {

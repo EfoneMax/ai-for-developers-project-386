@@ -40,6 +40,18 @@ export function toApiError(error: unknown): ApiError {
 }
 
 /**
+ * Достаёт данные успешного ответа SDK или бросает конверт ошибки.
+ * Один помощник на все запросы: разбор ответа не повторяется в каждом модуле.
+ */
+export function unwrapData<T>({ data, error }: { data: T | undefined; error: unknown }): T {
+  if (data !== undefined) {
+    return data;
+  }
+
+  throw toApiError(error);
+}
+
+/**
  * Достаёт тело ошибки из ответа клиента. Клиент бросает разобранный
  * JSON целиком, поэтому конверт `{ error: {...} }` разворачивается здесь.
  */

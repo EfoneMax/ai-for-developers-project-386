@@ -10,7 +10,6 @@ import MeetingTypeCard from "@/features/meeting-types/MeetingTypeCard";
 import MeetingTypeListSkeleton from "@/features/meeting-types/MeetingTypeListSkeleton";
 import { useMeetingTypes } from "@/features/meeting-types/useMeetingTypes";
 import BookingSlotStep from "@/features/slots/BookingSlotStep";
-import { getMoscowWindowDays } from "@/features/slots/moscow-days";
 import { useGuestTimeZone } from "@/features/slots/time-zone";
 
 const SLOT_TAKEN_NOTICE = "Это время только что заняли. Выберите другой слот — контакты сохранены.";
@@ -39,7 +38,6 @@ interface BookingPageProps {
 export default function BookingPage({ now = () => new Date() }: BookingPageProps) {
   const { state, reload } = useMeetingTypes();
   const { timeZone, setTimeZone } = useGuestTimeZone();
-  const [windowDays] = useState(() => getMoscowWindowDays(now()));
   const [step, setStep] = useState<Step>({ kind: "type" });
   const [guest, setGuest] = useState<GuestDraft>(EMPTY_GUEST);
   const [typeNotice, setTypeNotice] = useState<string | undefined>();
@@ -100,7 +98,7 @@ export default function BookingPage({ now = () => new Date() }: BookingPageProps
       <BookingSlotStep
         key={`${meetingType.id}:${attempt}`}
         meetingType={meetingType}
-        days={windowDays}
+        now={now}
         timeZone={timeZone}
         onTimeZoneChange={setTimeZone}
         notice={notice}
@@ -110,6 +108,11 @@ export default function BookingPage({ now = () => new Date() }: BookingPageProps
         }}
         onContinue={(slot) => {
           setStep({ kind: "contacts", meetingType, slot, attempt });
+        }}
+        onMeetingTypeGone={() => {
+          setTypeNotice(MEETING_TYPE_GONE_NOTICE);
+          setStep({ kind: "type" });
+          reload();
         }}
       />
     );
@@ -128,12 +131,7 @@ export default function BookingPage({ now = () => new Date() }: BookingPageProps
 
       {typeNotice === undefined ? null : (
         <div className="mt-6">
-          <p
-            role="alert"
-            className="rounded-2xl border border-[#c25b4a]/30 bg-[#fbe9e5] px-5 py-4 text-sm font-medium text-[#7a2f22]"
-          >
-            {typeNotice}
-          </p>
+          <ErrorBanner title={typeNotice} />
         </div>
       )}
 
@@ -144,7 +142,7 @@ export default function BookingPage({ now = () => new Date() }: BookingPageProps
           <ErrorBanner title="Не удалось загрузить типы встреч" onRetry={reload} />
         ) : null}
 
-        {state.status === "ready" && state.items.length === 0 ? (
+        {state.status === "ready" && state.data.length === 0 ? (
           <div className="rounded-3xl border border-white/60 bg-white/80 p-8 text-center shadow-[0_30px_80px_rgba(40,55,46,0.12)] sm:p-12">
             <span className="mx-auto grid size-12 place-items-center rounded-full bg-[#e6efe8] text-[#2f6b4f]">
               <CalendarClock className="size-6" />
@@ -164,9 +162,9 @@ export default function BookingPage({ now = () => new Date() }: BookingPageProps
           </div>
         ) : null}
 
-        {state.status === "ready" && state.items.length > 0 ? (
+        {state.status === "ready" && state.data.length > 0 ? (
           <ul className="grid gap-4 sm:grid-cols-2">
-            {state.items.map((meetingType) => (
+            {state.data.map((meetingType) => (
               <li key={meetingType.id}>
                 <MeetingTypeCard
                   meetingType={meetingType}
