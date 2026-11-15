@@ -1,13 +1,14 @@
 import { parseUtcInstant } from "../domain/bookings.js";
-import type { ParseResult, ValidationIssue } from "../validation.js";
-
-/** Ограничения контактов гостя из контракта. */
-const NAME_MAX_LENGTH = 100;
-const EMAIL_MAX_LENGTH = 254;
-const COMMENT_MAX_LENGTH = 1000;
-
-/** Базовая проверка формата email: одна `@`, домен с точкой, без пробелов. */
-const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import {
+  COMMENT_MAX_LENGTH,
+  EMAIL_FORMAT,
+  EMAIL_MAX_LENGTH,
+  NAME_MAX_LENGTH,
+  isRecord,
+  parseRequiredText,
+  type ParseResult,
+  type ValidationIssue,
+} from "../validation.js";
 
 /** Нормализованные поля создания брони. */
 interface CreateBookingInput {
@@ -18,10 +19,6 @@ interface CreateBookingInput {
     email: string;
     comment?: string;
   };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -45,11 +42,7 @@ export function parseCreateBooking(body: unknown): ParseResult<CreateBookingInpu
     return { ok: false, issues };
   }
 
-  if (meetingTypeId === undefined || start === undefined || guest === undefined) {
-    return { ok: false, issues: [{ field: "guest", message: "Проверьте контакты гостя" }] };
-  }
-
-  return { ok: true, value: { meetingTypeId, start, guest } };
+  return { ok: true, value: { meetingTypeId: meetingTypeId!, start: start!, guest: guest! } };
 }
 
 function parseMeetingTypeId(value: unknown, issues: ValidationIssue[]): string | undefined {
@@ -95,22 +88,12 @@ function parseGuest(
 }
 
 function parseName(value: unknown, issues: ValidationIssue[]): string | undefined {
-  if (typeof value !== "string") {
-    issues.push({ field: "name", message: "Укажите имя" });
-    return undefined;
-  }
-
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    issues.push({ field: "name", message: "Укажите имя" });
-    return undefined;
-  }
-  if (trimmed.length > NAME_MAX_LENGTH) {
-    issues.push({ field: "name", message: `Имя — не больше ${NAME_MAX_LENGTH} символов` });
-    return undefined;
-  }
-
-  return trimmed;
+  return parseRequiredText(value, issues, {
+    field: "name",
+    requiredMessage: "Укажите имя",
+    tooLongMessage: `Имя — не больше ${NAME_MAX_LENGTH} символов`,
+    maxLength: NAME_MAX_LENGTH,
+  });
 }
 
 function parseEmail(value: unknown, issues: ValidationIssue[]): string | undefined {

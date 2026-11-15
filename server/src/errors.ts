@@ -1,3 +1,5 @@
+import type { ValidationIssue } from "./validation.js";
+
 /** Стабильные коды ошибок API из контракта (ADR-0005). */
 export type ApiErrorCode =
   | "VALIDATION_ERROR"
@@ -8,11 +10,8 @@ export type ApiErrorCode =
   | "NOT_FOUND"
   | "INTERNAL_ERROR";
 
-/** Ошибка конкретного поля запроса. */
-export interface ApiErrorDetail {
-  field: string;
-  message: string;
-}
+/** Ошибка конкретного поля запроса: та же форма, что у разбора тела. */
+export type ApiErrorDetail = ValidationIssue;
 
 /** Конверт ошибки API. */
 export interface ApiErrorBody {

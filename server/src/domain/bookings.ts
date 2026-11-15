@@ -19,6 +19,18 @@ export function overlaps(a: Interval, b: Interval): boolean {
 /** Момент UTC без смещения, с нулевыми секундами и миллисекундами. */
 const UTC_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00(?:\.000)?Z$/;
 
+const MS_PER_MINUTE = 60_000;
+
+/**
+ * Конец встречи по снимку типа: `start` плюс длительность (ADR-0006).
+ *
+ * Конец считается в доменной операции бронирования и сохраняется, поэтому
+ * правка типа позже его не пересчитывает.
+ */
+export function bookingEnd(start: string, durationMinutes: number): string {
+  return new Date(Date.parse(start) + durationMinutes * MS_PER_MINUTE).toISOString();
+}
+
 /**
  * Разбирает момент UTC из тела запроса и приводит его к каноническому виду.
  *

@@ -12,8 +12,6 @@ export interface BookingsRoutesOptions {
   now: () => Date;
 }
 
-const MS_PER_MINUTE = 60_000;
-
 /**
  * Регистрирует создание и список предстоящих броней.
  *
@@ -51,7 +49,6 @@ export function registerBookingsRoutes(app: FastifyInstance, options: BookingsRo
         durationMinutes: meetingType.durationMinutes,
       },
       start,
-      end: new Date(Date.parse(start) + meetingType.durationMinutes * MS_PER_MINUTE).toISOString(),
       guest,
     });
 

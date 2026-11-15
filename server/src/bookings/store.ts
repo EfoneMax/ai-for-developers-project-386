@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { overlaps, type Interval } from "../domain/bookings.js";
+import { bookingEnd, overlaps, type Interval } from "../domain/bookings.js";
 
 /** Статус брони: отменённая больше не занимает слот. */
 type BookingStatus = "confirmed" | "cancelled";
@@ -28,19 +28,19 @@ export interface Booking {
   guest: BookingGuest;
 }
 
-/** Данные новой брони; интервал уже посчитан по снимку типа. */
+/** Данные новой брони; конец интервала вычисляет доменная операция. */
 interface NewBooking {
   meetingType: BookingMeetingTypeSnapshot;
   start: string;
-  end: string;
   guest: BookingGuest;
 }
 
 /** Хранилище броней в памяти процесса. */
 export interface BookingsStore {
   /**
-   * Бронирует слот атомарно: проверка занятости и вставка идут синхронно,
-   * без `await` между ними (ADR-0004). `undefined` — слот уже занят.
+   * Бронирует слот атомарно: конец считается по снимку типа, проверка
+   * занятости и вставка идут синхронно, без `await` между ними (ADR-0004).
+   * `undefined` — слот уже занят.
    */
   book(input: NewBooking): Booking | undefined;
 
@@ -72,8 +72,12 @@ export function createBookingsStore(seed: readonly Booking[] = []): BookingsStor
 
   return {
     book(input) {
+      const slot = {
+        start: input.start,
+        end: bookingEnd(input.start, input.meetingType.durationMinutes),
+      };
       const taken = bookings.some(
-        (booking) => booking.status === "confirmed" && overlaps(input, booking),
+        (booking) => booking.status === "confirmed" && overlaps(slot, booking),
       );
 
       if (taken) {
@@ -84,8 +88,8 @@ export function createBookingsStore(seed: readonly Booking[] = []): BookingsStor
         id: randomUUID(),
         status: "confirmed",
         meetingType: input.meetingType,
-        start: input.start,
-        end: input.end,
+        start: slot.start,
+        end: slot.end,
         guest: input.guest,
       };
 

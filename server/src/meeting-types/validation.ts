@@ -1,11 +1,14 @@
 import type { MeetingTypeListParams, MeetingTypeSortField, SortOrder } from "./store.js";
-import type { ParseResult, ValidationIssue } from "../validation.js";
-
-/** Ограничения полей типа встречи из контракта. */
-const NAME_MAX_LENGTH = 100;
-const DESCRIPTION_MAX_LENGTH = 1000;
-const DURATION_MIN = 5;
-const DURATION_MAX = 240;
+import {
+  DESCRIPTION_MAX_LENGTH,
+  DURATION_MAX,
+  DURATION_MIN,
+  NAME_MAX_LENGTH,
+  isRecord,
+  parseRequiredText,
+  type ParseResult,
+  type ValidationIssue,
+} from "../validation.js";
 
 /** Значения пагинации по умолчанию и границы из контракта. */
 const PAGE_MIN = 1;
@@ -19,10 +22,6 @@ const DEFAULT_ORDER: SortOrder = "asc";
 
 const SORT_FIELDS: readonly MeetingTypeSortField[] = ["createdAt", "name", "durationMinutes"];
 const SORT_ORDERS: readonly SortOrder[] = ["asc", "desc"];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /**
  * Проверяет тело создания типа встречи и возвращает нормализованные поля.
@@ -49,16 +48,12 @@ export function parseCreateMeetingType(body: unknown): ParseResult<{
     return { ok: false, issues };
   }
 
-  if (name === undefined || durationMinutes === undefined) {
-    return { ok: false, issues: [{ field: "name", message: "Укажите название" }] };
-  }
-
   return {
     ok: true,
     value: {
-      name,
+      name: name!,
       ...(description === undefined ? {} : { description }),
-      durationMinutes,
+      durationMinutes: durationMinutes!,
     },
   };
 }
@@ -242,22 +237,12 @@ function readEnum<T extends string>({
 }
 
 function parseName(value: unknown, issues: ValidationIssue[]): string | undefined {
-  if (typeof value !== "string") {
-    issues.push({ field: "name", message: "Укажите название" });
-    return undefined;
-  }
-
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    issues.push({ field: "name", message: "Укажите название" });
-    return undefined;
-  }
-  if (trimmed.length > NAME_MAX_LENGTH) {
-    issues.push({ field: "name", message: `Название — не больше ${NAME_MAX_LENGTH} символов` });
-    return undefined;
-  }
-
-  return trimmed;
+  return parseRequiredText(value, issues, {
+    field: "name",
+    requiredMessage: "Укажите название",
+    tooLongMessage: `Название — не больше ${NAME_MAX_LENGTH} символов`,
+    maxLength: NAME_MAX_LENGTH,
+  });
 }
 
 function parseDescription(value: unknown, issues: ValidationIssue[]): string | undefined {
