@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import BookingPage from "./BookingPage";
 import { listMeetingTypes } from "@/features/meeting-types/api";
+import { createBooking } from "@/features/bookings/api";
+import { ApiError } from "@/lib/api-error";
 import { listMeetingTypeSlots } from "@/features/slots/api";
 
 vi.mock("@/features/meeting-types/api", () => ({
@@ -14,6 +16,11 @@ vi.mock("@/features/meeting-types/api", () => ({
 
 vi.mock("@/features/slots/api", () => ({
   listMeetingTypeSlots: vi.fn<typeof import("@/features/slots/api").listMeetingTypeSlots>(),
+}));
+
+vi.mock("@/features/bookings/api", () => ({
+  createBooking: vi.fn<typeof import("@/features/bookings/api").createBooking>(),
+  listBookings: vi.fn<typeof import("@/features/bookings/api").listBookings>(),
 }));
 
 const meetingType = {
@@ -251,5 +258,247 @@ describe("шаг выбора дня и слота", () => {
     await user.click(screen.getByRole("button", { name: "Назад к типам" }));
 
     expect(screen.getByRole("heading", { name: "Выберите тип встречи" })).toBeTruthy();
+  });
+});
+
+const booking = {
+  id: "11111111-1111-4111-8111-111111111111",
+  status: "confirmed" as const,
+  meetingType: {
+    id: meetingType.id,
+    name: meetingType.name,
+    durationMinutes: meetingType.durationMinutes,
+  },
+  start: "2026-11-12T10:00:00.000Z",
+  end: "2026-11-12T10:30:00.000Z",
+  guest: { name: "Анна", email: "anna@example.com", comment: "Позвонить заранее" },
+};
+
+async function goToContacts(user: ReturnType<typeof userEvent.setup>) {
+  await chooseMeetingType(user);
+  await user.click(dayGroup().getByText("чт, 12 нояб."));
+  await user.click(timeGroup().getByRole("button", { name: "13:00" }));
+  await user.click(screen.getByRole("button", { name: "Продолжить" }));
+}
+
+async function fillContacts(
+  user: ReturnType<typeof userEvent.setup>,
+  values: { name?: string; email?: string; comment?: string } = {},
+) {
+  await user.type(screen.getByLabelText("Имя"), values.name ?? "Анна");
+  await user.type(screen.getByLabelText("Email"), values.email ?? "anna@example.com");
+  if (values.comment !== undefined) {
+    await user.type(screen.getByLabelText("Комментарий"), values.comment);
+  }
+}
+
+async function submitContacts(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "Подтвердить запись" }));
+}
+
+describe("шаг контактов и подтверждение", () => {
+  it("открывает форму контактов после выбора слота", async () => {
+    const user = userEvent.setup();
+    renderBookingPage();
+
+    await goToContacts(user);
+
+    expect(screen.getByRole("heading", { name: "Оставьте контакты" })).toBeTruthy();
+    expect(screen.getByLabelText("Имя")).toBeTruthy();
+    expect(screen.getByLabelText("Email")).toBeTruthy();
+    expect(screen.getByLabelText("Комментарий")).toBeTruthy();
+    expect(screen.getByText(/13:00–13:30/)).toBeTruthy();
+  });
+
+  it("показывает экран подтверждения с датой, типом и контактами без номера брони", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createBooking).mockResolvedValue(booking);
+    renderBookingPage();
+
+    await goToContacts(user);
+    await fillContacts(user, { comment: "Позвонить заранее" });
+    await submitContacts(user);
+
+    expect(await screen.findByRole("heading", { name: "Вы записаны" })).toBeTruthy();
+    expect(createBooking).toHaveBeenCalledWith({
+      meetingTypeId: meetingType.id,
+      start: "2026-11-12T10:00:00.000Z",
+      guest: {
+        name: "Анна",
+        email: "anna@example.com",
+        comment: "Позвонить заранее",
+      },
+    });
+    expect(screen.getByTestId("confirmation-date").textContent).toBe("четверг, 12 ноября 2026");
+    expect(screen.getByText(/13:00–13:30/)).toBeTruthy();
+    expect(screen.getByTestId("confirmation-time-zone").textContent).toBe("Europe/Moscow");
+    expect(screen.getByText("Созвон по проекту")).toBeTruthy();
+    expect(screen.getByText("30 мин")).toBeTruthy();
+    expect(screen.getByText("anna@example.com")).toBeTruthy();
+    expect(screen.getByText(/только владелец/i)).toBeTruthy();
+    expect(screen.queryByText(booking.id)).toBeNull();
+  });
+
+  it("показывает время на подтверждении в поясе гостя", async () => {
+    window.localStorage.setItem("call-booking:time-zone", "Europe/Berlin");
+    const user = userEvent.setup();
+    vi.mocked(createBooking).mockResolvedValue(booking);
+    renderBookingPage();
+
+    await chooseMeetingType(user);
+    await user.click(dayGroup().getByText("чт, 12 нояб."));
+    await user.click(timeGroup().getByRole("button", { name: "11:00" }));
+    await user.click(screen.getByRole("button", { name: "Продолжить" }));
+    await fillContacts(user);
+    await submitContacts(user);
+
+    expect(await screen.findByRole("heading", { name: "Вы записаны" })).toBeTruthy();
+    expect(screen.getByText(/11:00–11:30/)).toBeTruthy();
+    expect(screen.getByTestId("confirmation-time-zone").textContent).toBe("Europe/Berlin");
+  });
+
+  it("проверяет обязательные поля и формат email до запроса", async () => {
+    const user = userEvent.setup();
+    renderBookingPage();
+
+    await goToContacts(user);
+    await submitContacts(user);
+
+    expect(screen.getByText("Укажите имя")).toBeTruthy();
+    expect(screen.getByText("Укажите email")).toBeTruthy();
+    expect(createBooking).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText("Имя"), "Анна");
+    await user.type(screen.getByLabelText("Email"), "anna@");
+    await submitContacts(user);
+
+    expect(screen.getByText("Укажите email вида name@example.com")).toBeTruthy();
+    expect(createBooking).not.toHaveBeenCalled();
+  });
+
+  it("раскладывает серверные details по полям формы", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createBooking).mockRejectedValue(
+      new ApiError("VALIDATION_ERROR", "Проверьте заполнение полей", [
+        { field: "email", message: "Сервер: email занят" },
+      ]),
+    );
+    renderBookingPage();
+
+    await goToContacts(user);
+    await fillContacts(user);
+    await submitContacts(user);
+
+    expect(await screen.findByText("Сервер: email занят")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Оставьте контакты" })).toBeTruthy();
+  });
+
+  it("блокирует кнопку на время запроса и не отправляет бронь дважды", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createBooking).mockReturnValue(new Promise(() => {}));
+    renderBookingPage();
+
+    await goToContacts(user);
+    await fillContacts(user);
+
+    const submit = screen.getByRole("button", { name: "Подтвердить запись" });
+    await user.click(submit);
+    await user.click(submit);
+
+    expect(submit.hasAttribute("disabled")).toBe(true);
+    expect(createBooking).toHaveBeenCalledTimes(1);
+  });
+
+  it("при занятом слоте показывает баннер, обновляет слоты и сохраняет контакты", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listMeetingTypeSlots).mockResolvedValueOnce(slots).mockResolvedValueOnce([slots[2]!]);
+    vi.mocked(createBooking).mockRejectedValue(
+      new ApiError("SLOT_TAKEN", "Это время только что заняли"),
+    );
+    renderBookingPage();
+
+    await goToContacts(user);
+    await fillContacts(user, { comment: "Позвонить заранее" });
+    await submitContacts(user);
+
+    expect(await screen.findByText(/это время только что заняли/i)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Выберите день и время" })).toBeTruthy();
+    expect(listMeetingTypeSlots).toHaveBeenCalledTimes(2);
+
+    await user.click(dayGroup().getByText("пт, 13 нояб."));
+    await user.click(timeGroup().getByRole("button", { name: "09:00" }));
+    await user.click(screen.getByRole("button", { name: "Продолжить" }));
+
+    expect((screen.getByLabelText("Имя") as HTMLInputElement).value).toBe("Анна");
+    expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("anna@example.com");
+    expect((screen.getByLabelText("Комментарий") as HTMLTextAreaElement).value).toBe(
+      "Позвонить заранее",
+    );
+  });
+
+  it("считает истёкший старт таким же конфликтом, как занятый слот", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createBooking).mockRejectedValue(
+      new ApiError("VALIDATION_ERROR", "Проверьте заполнение полей", [
+        { field: "start", message: "Это время недоступно для записи" },
+      ]),
+    );
+    renderBookingPage();
+
+    await goToContacts(user);
+    await fillContacts(user);
+    await submitContacts(user);
+
+    expect(await screen.findByText(/это время только что заняли/i)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Выберите день и время" })).toBeTruthy();
+  });
+
+  it("возвращает к списку типов, если тип встречи исчез", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createBooking).mockRejectedValue(
+      new ApiError("MEETING_TYPE_NOT_FOUND", "Тип встречи не найден"),
+    );
+    renderBookingPage();
+
+    await goToContacts(user);
+    await fillContacts(user);
+    await submitContacts(user);
+
+    expect(await screen.findByRole("heading", { name: "Выберите тип встречи" })).toBeTruthy();
+    expect(screen.getByText(/тип встречи больше недоступен/i)).toBeTruthy();
+  });
+
+  it("при сетевой ошибке показывает баннер с повтором и не повторяет запрос сам", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createBooking)
+      .mockRejectedValueOnce(new ApiError("NETWORK_ERROR", "Не удалось связаться с сервером"))
+      .mockResolvedValueOnce(booking);
+    renderBookingPage();
+
+    await goToContacts(user);
+    await fillContacts(user);
+    await submitContacts(user);
+
+    expect(await screen.findByText(/не удалось связаться с сервером/i)).toBeTruthy();
+    expect(createBooking).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "Повторить" }));
+
+    expect(await screen.findByRole("heading", { name: "Вы записаны" })).toBeTruthy();
+    expect(createBooking).toHaveBeenCalledTimes(2);
+  });
+
+  it("сбрасывает поток к выбору типа по кнопке «Записаться ещё»", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createBooking).mockResolvedValue(booking);
+    renderBookingPage();
+
+    await goToContacts(user);
+    await fillContacts(user);
+    await submitContacts(user);
+    await user.click(await screen.findByRole("button", { name: "Записаться ещё" }));
+
+    expect(screen.getByRole("heading", { name: "Выберите тип встречи" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Вы записаны" })).toBeNull();
   });
 });

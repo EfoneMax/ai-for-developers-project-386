@@ -1,31 +1,58 @@
 import { useState } from "react";
 import { ArrowLeft, CalendarX } from "lucide-react";
-import type { MeetingType } from "@/client/types.gen";
+import type { MeetingType, Slot } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import ErrorBanner from "@/components/ErrorBanner";
 import type { MoscowDay } from "./moscow-days";
+import { moscowDateKey } from "./moscow-days";
 import SlotCalendar from "./SlotCalendar";
 import SlotListSkeleton from "./SlotListSkeleton";
-import { useGuestTimeZone } from "./time-zone";
 import { useSlots } from "./useSlots";
 
 interface BookingSlotStepProps {
   meetingType: MeetingType;
   days: MoscowDay[];
+  timeZone: string;
+  onTimeZoneChange: (timeZone: string) => void;
+  /** Сообщение над календарём: например, слот только что заняли. */
+  notice?: string;
+  /** Ранее выбранный слот, чтобы возврат с шага контактов не сбрасывал выбор. */
+  initialSlotStart?: string | null;
   onBack: () => void;
+  onContinue: (slot: Slot) => void;
 }
 
 /**
  * Второй шаг страницы записи: выбор дня и свободного слота.
  *
  * Слот задан абсолютным моментом UTC, поэтому смена пояса только
- * перерисовывает время и не сбрасывает выбор.
+ * перерисовывает время и не сбрасывает выбор. Список слотов загружается
+ * заново при монтировании шага, в том числе после конфликта бронирования.
  */
-export default function BookingSlotStep({ meetingType, days, onBack }: BookingSlotStepProps) {
+export default function BookingSlotStep({
+  meetingType,
+  days,
+  timeZone,
+  onTimeZoneChange,
+  notice,
+  initialSlotStart,
+  onBack,
+  onContinue,
+}: BookingSlotStepProps) {
   const { state, reload } = useSlots(meetingType.id);
-  const { timeZone, setTimeZone } = useGuestTimeZone();
-  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
-  const [selectedSlotStart, setSelectedSlotStart] = useState<string | null>(null);
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(
+    initialSlotStart === undefined || initialSlotStart === null
+      ? null
+      : moscowDateKey(initialSlotStart),
+  );
+  const [selectedSlotStart, setSelectedSlotStart] = useState<string | null>(
+    initialSlotStart ?? null,
+  );
+
+  const selectedSlot =
+    state.status === "ready"
+      ? state.slots.find((slot) => slot.start === selectedSlotStart)
+      : undefined;
 
   return (
     <section className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -44,6 +71,17 @@ export default function BookingSlotStep({ meetingType, days, onBack }: BookingSl
           {meetingType.durationMinutes} мин
         </span>
       </div>
+
+      {notice === undefined ? null : (
+        <div className="mt-6">
+          <p
+            role="alert"
+            className="rounded-2xl border border-[#c25b4a]/30 bg-[#fbe9e5] px-5 py-4 text-sm font-medium text-[#7a2f22]"
+          >
+            {notice}
+          </p>
+        </div>
+      )}
 
       {state.status === "loading" ? <SlotListSkeleton /> : null}
 
@@ -69,18 +107,34 @@ export default function BookingSlotStep({ meetingType, days, onBack }: BookingSl
       ) : null}
 
       {state.status === "ready" && state.slots.length > 0 ? (
-        <SlotCalendar
-          days={days}
-          slots={state.slots}
-          timeZone={timeZone}
-          onTimeZoneChange={setTimeZone}
-          selectedDayKey={selectedDayKey}
-          onSelectDay={setSelectedDayKey}
-          selectedSlotStart={selectedSlotStart}
-          onSelectSlot={(slot) => {
-            setSelectedSlotStart(slot.start);
-          }}
-        />
+        <>
+          <SlotCalendar
+            days={days}
+            slots={state.slots}
+            timeZone={timeZone}
+            onTimeZoneChange={onTimeZoneChange}
+            selectedDayKey={selectedDayKey}
+            onSelectDay={setSelectedDayKey}
+            selectedSlotStart={selectedSlotStart}
+            onSelectSlot={(slot) => {
+              setSelectedSlotStart(slot.start);
+            }}
+          />
+
+          <div className="mt-8 flex justify-end">
+            <Button
+              type="button"
+              disabled={selectedSlot === undefined}
+              onClick={() => {
+                if (selectedSlot !== undefined) {
+                  onContinue(selectedSlot);
+                }
+              }}
+            >
+              Продолжить
+            </Button>
+          </div>
+        </>
       ) : null}
     </section>
   );

@@ -1,14 +1,35 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, CalendarClock } from "lucide-react";
-import type { MeetingType } from "@/client/types.gen";
+import type { Booking, MeetingType, Slot } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import ErrorBanner from "@/components/ErrorBanner";
+import BookingConfirmation from "@/features/bookings/BookingConfirmation";
+import BookingContactsStep, { type GuestDraft } from "@/features/bookings/BookingContactsStep";
 import MeetingTypeCard from "@/features/meeting-types/MeetingTypeCard";
 import MeetingTypeListSkeleton from "@/features/meeting-types/MeetingTypeListSkeleton";
 import { useMeetingTypes } from "@/features/meeting-types/useMeetingTypes";
 import BookingSlotStep from "@/features/slots/BookingSlotStep";
 import { getMoscowWindowDays } from "@/features/slots/moscow-days";
+import { useGuestTimeZone } from "@/features/slots/time-zone";
+
+const SLOT_TAKEN_NOTICE = "Это время только что заняли. Выберите другой слот — контакты сохранены.";
+const MEETING_TYPE_GONE_NOTICE = "Этот тип встречи больше недоступен. Выберите другой.";
+
+const EMPTY_GUEST: GuestDraft = { name: "", email: "", comment: "" };
+
+/** Шаг потока записи; контакты живут отдельно и переживают конфликт слотов. */
+type Step =
+  | { kind: "type" }
+  | {
+      kind: "slot";
+      meetingType: MeetingType;
+      attempt: number;
+      notice?: string;
+      initialSlotStart?: string | null;
+    }
+  | { kind: "contacts"; meetingType: MeetingType; slot: Slot; attempt: number }
+  | { kind: "confirmed"; booking: Booking };
 
 interface BookingPageProps {
   /** Момент, от которого отсчитывается окно записи; по умолчанию — текущий. */
@@ -17,16 +38,78 @@ interface BookingPageProps {
 
 export default function BookingPage({ now = () => new Date() }: BookingPageProps) {
   const { state, reload } = useMeetingTypes();
-  const [selectedType, setSelectedType] = useState<MeetingType | null>(null);
+  const { timeZone, setTimeZone } = useGuestTimeZone();
   const [windowDays] = useState(() => getMoscowWindowDays(now()));
+  const [step, setStep] = useState<Step>({ kind: "type" });
+  const [guest, setGuest] = useState<GuestDraft>(EMPTY_GUEST);
+  const [typeNotice, setTypeNotice] = useState<string | undefined>();
 
-  if (selectedType !== null) {
+  function restart() {
+    setGuest(EMPTY_GUEST);
+    setTypeNotice(undefined);
+    setStep({ kind: "type" });
+    reload();
+  }
+
+  if (step.kind === "confirmed") {
+    return <BookingConfirmation booking={step.booking} timeZone={timeZone} onRestart={restart} />;
+  }
+
+  if (step.kind === "contacts") {
+    const { meetingType, slot, attempt } = step;
+
+    return (
+      <BookingContactsStep
+        meetingType={meetingType}
+        slot={slot}
+        timeZone={timeZone}
+        guest={guest}
+        onGuestChange={setGuest}
+        onBack={() => {
+          setStep({
+            kind: "slot",
+            meetingType,
+            attempt,
+            initialSlotStart: slot.start,
+          });
+        }}
+        onBooked={(booking) => {
+          setStep({ kind: "confirmed", booking });
+        }}
+        onSlotTaken={() => {
+          setStep({
+            kind: "slot",
+            meetingType,
+            attempt: attempt + 1,
+            notice: SLOT_TAKEN_NOTICE,
+          });
+        }}
+        onMeetingTypeGone={() => {
+          setTypeNotice(MEETING_TYPE_GONE_NOTICE);
+          setStep({ kind: "type" });
+          reload();
+        }}
+      />
+    );
+  }
+
+  if (step.kind === "slot") {
+    const { meetingType, attempt, notice, initialSlotStart } = step;
+
     return (
       <BookingSlotStep
-        meetingType={selectedType}
+        key={`${meetingType.id}:${attempt}`}
+        meetingType={meetingType}
         days={windowDays}
+        timeZone={timeZone}
+        onTimeZoneChange={setTimeZone}
+        notice={notice}
+        initialSlotStart={initialSlotStart}
         onBack={() => {
-          setSelectedType(null);
+          setStep({ kind: "type" });
+        }}
+        onContinue={(slot) => {
+          setStep({ kind: "contacts", meetingType, slot, attempt });
         }}
       />
     );
@@ -42,6 +125,17 @@ export default function BookingPage({ now = () => new Date() }: BookingPageProps
         Владелец заранее задал название, описание и длительность. На следующем шаге вы увидите
         свободные слоты в своём часовом поясе.
       </p>
+
+      {typeNotice === undefined ? null : (
+        <div className="mt-6">
+          <p
+            role="alert"
+            className="rounded-2xl border border-[#c25b4a]/30 bg-[#fbe9e5] px-5 py-4 text-sm font-medium text-[#7a2f22]"
+          >
+            {typeNotice}
+          </p>
+        </div>
+      )}
 
       <div className="mt-10">
         {state.status === "loading" ? <MeetingTypeListSkeleton /> : null}
@@ -74,7 +168,12 @@ export default function BookingPage({ now = () => new Date() }: BookingPageProps
           <ul className="grid gap-4 sm:grid-cols-2">
             {state.items.map((meetingType) => (
               <li key={meetingType.id}>
-                <MeetingTypeCard meetingType={meetingType} onSelect={setSelectedType} />
+                <MeetingTypeCard
+                  meetingType={meetingType}
+                  onSelect={(selected) => {
+                    setStep({ kind: "slot", meetingType: selected, attempt: 0 });
+                  }}
+                />
               </li>
             ))}
           </ul>

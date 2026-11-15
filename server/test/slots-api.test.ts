@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
+import { createBookingsStore } from "../src/bookings/store.js";
 
 const apps: ReturnType<typeof createApp>[] = [];
 
@@ -136,5 +137,117 @@ describe("GET /api/meeting-types/{id}/slots", () => {
 
     expect(withQuery.statusCode).toBe(200);
     expect(withQuery.json()).toEqual(plain.json());
+  });
+});
+
+describe("доступность с учётом броней", () => {
+  /** Приложение с занятым интервалом: проверяем, что слот пропал из выдачи. */
+  function appWithBooking(
+    booking: { start: string; end: string },
+    status: "confirmed" | "cancelled",
+  ) {
+    const app = createApp({
+      now: () => new Date("2026-11-12T09:15:00.000Z"),
+      bookingsStore: createBookingsStore([
+        {
+          id: "11111111-1111-4111-8111-111111111111",
+          status,
+          meetingType: {
+            id: "9f1a2b3c-0000-4000-8000-000000000000",
+            name: "Созвон",
+            durationMinutes: 30,
+          },
+          guest: { name: "Гость", email: "guest@example.com" },
+          ...booking,
+        },
+      ]),
+    });
+    apps.push(app);
+    return app;
+  }
+
+  /** Старты слотов указанной московской даты. */
+  function startsOn(slots: { start: string }[], date: string): string[] {
+    return slots.filter((slot) => moscowDate(slot.start) === date).map((slot) => slot.start);
+  }
+
+  it("исключает слоты, пересекающиеся с подтверждённой бронью", async () => {
+    const app = appWithBooking(
+      { start: "2026-11-13T06:00:00.000Z", end: "2026-11-13T06:30:00.000Z" },
+      "confirmed",
+    );
+    const meetingType = await createMeetingType(app, 30);
+
+    const starts = startsOn((await getSlots(app, meetingType.id)).json().slots, "2026-11-13");
+
+    expect(starts).not.toContain("2026-11-13T06:00:00.000Z");
+    expect(starts).toContain("2026-11-13T06:30:00.000Z");
+  });
+
+  it("оставляет слоты, примыкающие к занятому интервалу", async () => {
+    const app = appWithBooking(
+      { start: "2026-11-13T06:30:00.000Z", end: "2026-11-13T07:30:00.000Z" },
+      "confirmed",
+    );
+    const meetingType = await createMeetingType(app, 30);
+
+    const starts = startsOn((await getSlots(app, meetingType.id)).json().slots, "2026-11-13");
+
+    expect(starts).toContain("2026-11-13T06:00:00.000Z");
+    expect(starts).toContain("2026-11-13T07:30:00.000Z");
+  });
+
+  it("учитывает занятость другого типа: ось времени общая", async () => {
+    const app = appWithBooking(
+      { start: "2026-11-13T06:00:00.000Z", end: "2026-11-13T06:45:00.000Z" },
+      "confirmed",
+    );
+    const otherType = await createMeetingType(app, 30);
+
+    const starts = startsOn((await getSlots(app, otherType.id)).json().slots, "2026-11-13");
+
+    expect(starts).not.toContain("2026-11-13T06:00:00.000Z");
+    expect(starts).not.toContain("2026-11-13T06:30:00.000Z");
+  });
+
+  it("не исключает слот, занятый отменённой бронью", async () => {
+    const app = appWithBooking(
+      { start: "2026-11-13T06:00:00.000Z", end: "2026-11-13T06:30:00.000Z" },
+      "cancelled",
+    );
+    const meetingType = await createMeetingType(app, 30);
+
+    const starts = startsOn((await getSlots(app, meetingType.id)).json().slots, "2026-11-13");
+
+    expect(starts).toContain("2026-11-13T06:00:00.000Z");
+  });
+
+  it("не отдаёт день, в котором не осталось свободных слотов", async () => {
+    const app = createApp({
+      now: () => new Date("2026-11-12T09:15:00.000Z"),
+      bookingsStore: createBookingsStore(
+        Array.from({ length: 18 }, (_, index) => ({
+          id: `11111111-1111-4111-8111-${String(index).padStart(12, "0")}`,
+          status: "confirmed" as const,
+          meetingType: {
+            id: "9f1a2b3c-0000-4000-8000-000000000000",
+            name: "Созвон",
+            durationMinutes: 30,
+          },
+          start: new Date(
+            Date.parse("2026-11-13T06:00:00.000Z") + index * 30 * 60_000,
+          ).toISOString(),
+          end: new Date(Date.parse("2026-11-13T06:30:00.000Z") + index * 30 * 60_000).toISOString(),
+          guest: { name: "Гость", email: "guest@example.com" },
+        })),
+      ),
+    });
+    apps.push(app);
+    const meetingType = await createMeetingType(app, 30);
+
+    const slots = (await getSlots(app, meetingType.id)).json().slots as { start: string }[];
+
+    expect(startsOn(slots, "2026-11-13")).toEqual([]);
+    expect(startsOn(slots, "2026-11-16")[0]).toBe("2026-11-16T06:00:00.000Z");
   });
 });

@@ -1,11 +1,4 @@
-/** Поле запроса и причина, по которой оно не прошло проверку. */
-interface ValidationIssue {
-  field: string;
-  message: string;
-}
-
-/** Результат разбора запроса: значение или список ошибок полей. */
-export type ParseResult<T> = { ok: true; value: T } | { ok: false; issues: ValidationIssue[] };
+import type { ParseResult, ValidationIssue } from "../validation.js";
 
 /** Ограничения полей типа встречи из контракта. */
 const NAME_MAX_LENGTH = 100;

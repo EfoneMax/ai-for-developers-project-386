@@ -1,4 +1,6 @@
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
+import { registerBookingsRoutes } from "./bookings/routes.js";
+import { createBookingsStore, type BookingsStore } from "./bookings/store.js";
 import { apiError } from "./errors.js";
 import { createMeetingTypesStore, type MeetingTypesStore } from "./meeting-types/store.js";
 import { registerMeetingTypesRoutes } from "./meeting-types/routes.js";
@@ -6,6 +8,7 @@ import { registerMeetingTypesRoutes } from "./meeting-types/routes.js";
 export interface CreateAppOptions {
   logger?: boolean;
   store?: MeetingTypesStore;
+  bookingsStore?: BookingsStore;
   now?: () => Date;
 }
 
@@ -13,8 +16,9 @@ export interface CreateAppOptions {
  * Собирает приложение Fastify. Отдельная функция позволяет тестам
  * поднимать сервер на свободном порту, не запуская точку входа.
  *
- * Хранилище создаётся вместе с приложением, поэтому каждый API-тест
- * начинает с чистого состояния.
+ * Хранилища создаются вместе с приложением, поэтому каждый API-тест
+ * начинает с чистого состояния. Маршруты типов и броней делят одно
+ * хранилище броней: занятость считается по общей оси владельца.
  */
 export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const app = Fastify({
@@ -38,10 +42,12 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
 
   app.get("/api/health", async () => ({ status: "ok" as const }));
 
-  registerMeetingTypesRoutes(app, {
-    store: options.store ?? createMeetingTypesStore(),
-    now: options.now ?? (() => new Date()),
-  });
+  const meetingTypes = options.store ?? createMeetingTypesStore();
+  const bookings = options.bookingsStore ?? createBookingsStore();
+  const now = options.now ?? (() => new Date());
+
+  registerMeetingTypesRoutes(app, { store: meetingTypes, bookings, now });
+  registerBookingsRoutes(app, { meetingTypes, bookings, now });
 
   return app;
 }

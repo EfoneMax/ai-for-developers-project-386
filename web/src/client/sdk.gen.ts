@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateMeetingTypeData, CreateMeetingTypeErrors, CreateMeetingTypeResponses, GetHealthData, GetHealthResponses, ListMeetingTypesData, ListMeetingTypesErrors, ListMeetingTypeSlotsData, ListMeetingTypeSlotsErrors, ListMeetingTypeSlotsResponses, ListMeetingTypesResponses } from './types.gen';
+import type { CreateBookingData, CreateBookingErrors, CreateBookingResponses, CreateMeetingTypeData, CreateMeetingTypeErrors, CreateMeetingTypeResponses, GetHealthData, GetHealthResponses, ListBookingsData, ListBookingsErrors, ListBookingsResponses, ListMeetingTypesData, ListMeetingTypesErrors, ListMeetingTypeSlotsData, ListMeetingTypeSlotsErrors, ListMeetingTypeSlotsResponses, ListMeetingTypesResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,31 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+/**
+ * Предстоящие брони владельца.
+ *
+ * Только подтверждённые брони, которые ещё не закончились, по возрастанию
+ * начала. Отменённые и прошедшие брони в список не попадают.
+ */
+export const listBookings = <ThrowOnError extends boolean = false>(options?: Options<ListBookingsData, ThrowOnError>): RequestResult<ListBookingsResponses, ListBookingsErrors, ThrowOnError> => (options?.client ?? client).get<ListBookingsResponses, ListBookingsErrors, ThrowOnError>({ url: '/api/bookings', ...options });
+
+/**
+ * Создание брони.
+ *
+ * Сервер заново проверяет сетку, рабочий день, окно записи, `start > now`
+ * и `end ≤ 18:00`, не доверяя ответу доступности. Проверка занятости и
+ * вставка брони идут синхронно, поэтому из двух одновременных запросов
+ * на один слот успешно проходит ровно один.
+ */
+export const createBooking = <ThrowOnError extends boolean = false>(options: Options<CreateBookingData, ThrowOnError>): RequestResult<CreateBookingResponses, CreateBookingErrors, ThrowOnError> => (options.client ?? client).post<CreateBookingResponses, CreateBookingErrors, ThrowOnError>({
+    url: '/api/bookings',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Проверка живости сервиса.
