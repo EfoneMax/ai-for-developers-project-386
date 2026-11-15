@@ -19,7 +19,8 @@ mise run dev        # API и фронтенд как daemons
 mise daemons status # состояние фоновых сервисов
 mise daemons logs   # логи сервисов
 mise daemons stop   # остановить сервисы
-mise run check      # все проверки — то же, что в CI
+mise run check      # быстрые проверки: генерация, линтеры, типы, тесты, сборка
+mise run check:e2e  # сборка и браузерные сценарии Playwright
 mise run fix        # безопасные автоисправления
 mise run lint
 mise run typecheck
@@ -57,7 +58,9 @@ npm run ui:add -- button  # добавить компонент shadcn/ui
   `api/openapi/openapi.yaml` и `web/src/client/` вручную: `mise run check`
   проверяет расхождение.
 - Компоненты shadcn добавляй через MCP или `npm run ui:add`, не копируй вручную.
-- Перед коммитом запускай `mise run check`. CI вызывает ту же задачу.
+- Перед коммитом запускай `mise run check`; браузерные сценарии — отдельной
+  задачей `mise run check:e2e`. В CI два последовательных job: `check`, затем
+  `e2e`; pre-push выполняет только `check`. CI вызывает те же задачи.
 - Не отключай проверки и правила линтера, чтобы пройти CI. Исключения —
   узкие, с причиной и решением человека. Стандарты ревью — в
   `CODING_STANDARDS.md`.
