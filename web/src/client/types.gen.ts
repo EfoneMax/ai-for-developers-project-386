@@ -5,6 +5,43 @@ export type ClientOptions = {
 };
 
 /**
+ * Тело ошибки API.
+ */
+export type ErrorBody = {
+    /**
+     * Стабильный код ошибки.
+     */
+    code: ErrorCode;
+    /**
+     * Русский текст ошибки; можно показать как есть.
+     */
+    message: string;
+    /**
+     * Ошибки полей, если это ошибка валидации.
+     */
+    details?: Array<ErrorDetail>;
+};
+
+/**
+ * Стабильный код ошибки API; интерфейс принимает решения по нему.
+ */
+export type ErrorCode = 'VALIDATION_ERROR' | 'NOT_FOUND' | 'INTERNAL_ERROR';
+
+/**
+ * Ошибка конкретного поля запроса.
+ */
+export type ErrorDetail = {
+    /**
+     * Имя поля, как в теле или параметрах запроса.
+     */
+    field: string;
+    /**
+     * Русский текст ошибки для показа рядом с полем.
+     */
+    message: string;
+};
+
+/**
  * Тело ответа проверки живости.
  */
 export type HealthBody = {
@@ -13,6 +50,85 @@ export type HealthBody = {
      */
     status: 'ok';
 };
+
+/**
+ * Тип встречи — настройка, по которой гость бронирует слот.
+ *
+ * Созданный тип сразу виден на странице записи. Названия не уникальны:
+ * типы различаются по `id`.
+ */
+export type MeetingType = {
+    /**
+     * Идентификатор, назначает сервер.
+     */
+    id: string;
+    /**
+     * Название, от 1 до 100 символов после удаления пробелов по краям.
+     */
+    name: string;
+    /**
+     * Описание, до 1000 символов. Пустое описание не возвращается.
+     */
+    description?: string;
+    /**
+     * Длительность встречи в минутах, от 5 до 240.
+     */
+    durationMinutes: number;
+    /**
+     * Момент создания в UTC, ISO 8601.
+     */
+    createdAt: string;
+};
+
+/**
+ * Поля создания типа встречи.
+ */
+export type MeetingTypeCreate = {
+    /**
+     * Название, от 1 до 100 символов после удаления пробелов по краям.
+     */
+    name: string;
+    /**
+     * Описание, до 1000 символов; пустая строка допустима.
+     */
+    description?: string;
+    /**
+     * Длительность встречи в минутах, от 5 до 240.
+     */
+    durationMinutes: number;
+};
+
+/**
+ * Страница списка типов встреч.
+ */
+export type MeetingTypeList = {
+    /**
+     * Типы встреч на текущей странице, от старых к новым.
+     */
+    items: Array<MeetingType>;
+    /**
+     * Общее количество типов встреч.
+     */
+    total: number;
+    /**
+     * Номер текущей страницы, начиная с 1.
+     */
+    page: number;
+    /**
+     * Размер страницы, от 1 до 100.
+     */
+    limit: number;
+};
+
+/**
+ * Размер страницы, от 1 до 100. По умолчанию 20.
+ */
+export type MeetingTypeListQueryLimit = number;
+
+/**
+ * Номер страницы, начиная с 1. По умолчанию 1.
+ */
+export type MeetingTypeListQueryPage = number;
 
 export type GetHealthData = {
     body?: never;
@@ -29,3 +145,78 @@ export type GetHealthResponses = {
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
+
+export type ListMeetingTypesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Номер страницы, начиная с 1. По умолчанию 1.
+         */
+        page?: number;
+        /**
+         * Размер страницы, от 1 до 100. По умолчанию 20.
+         */
+        limit?: number;
+    };
+    url: '/api/meeting-types';
+};
+
+export type ListMeetingTypesErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type ListMeetingTypesError = ListMeetingTypesErrors[keyof ListMeetingTypesErrors];
+
+export type ListMeetingTypesResponses = {
+    /**
+     * Ответ со страницей типов встреч.
+     */
+    200: MeetingTypeList;
+};
+
+export type ListMeetingTypesResponse = ListMeetingTypesResponses[keyof ListMeetingTypesResponses];
+
+export type CreateMeetingTypeData = {
+    body: MeetingTypeCreate;
+    path?: never;
+    query?: never;
+    url: '/api/meeting-types';
+};
+
+export type CreateMeetingTypeErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type CreateMeetingTypeError = CreateMeetingTypeErrors[keyof CreateMeetingTypeErrors];
+
+export type CreateMeetingTypeResponses = {
+    /**
+     * Ответ на создание типа встречи.
+     */
+    201: MeetingType;
+};
+
+export type CreateMeetingTypeResponse = CreateMeetingTypeResponses[keyof CreateMeetingTypeResponses];

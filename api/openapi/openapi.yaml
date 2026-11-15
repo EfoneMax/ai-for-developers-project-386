@@ -9,6 +9,7 @@ info:
     эти маршруты, а TypeScript SDK для фронтенда генерируется из OpenAPI.
 tags:
   - name: Health
+  - name: Meeting Types
 paths:
   /api/health:
     get:
@@ -26,8 +27,142 @@ paths:
                 status: ok
       tags:
         - Health
+  /api/meeting-types:
+    get:
+      operationId: listMeetingTypes
+      description: Список типов встреч с пагинацией.
+      parameters:
+        - $ref: '#/components/parameters/MeetingTypeListQuery.page'
+        - $ref: '#/components/parameters/MeetingTypeListQuery.limit'
+      responses:
+        '200':
+          description: Ответ со страницей типов встреч.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeetingTypeList'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Meeting Types
+    post:
+      operationId: createMeetingType
+      description: Создание типа встречи; созданный тип сразу виден гостю.
+      parameters: []
+      responses:
+        '201':
+          description: Ответ на создание типа встречи.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeetingType'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Meeting Types
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeetingTypeCreate'
 components:
+  parameters:
+    MeetingTypeListQuery.limit:
+      name: limit
+      in: query
+      required: false
+      description: Размер страницы, от 1 до 100. По умолчанию 20.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 20
+      explode: false
+    MeetingTypeListQuery.page:
+      name: page
+      in: query
+      required: false
+      description: Номер страницы, начиная с 1. По умолчанию 1.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        default: 1
+      explode: false
   schemas:
+    ErrorBody:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          allOf:
+            - $ref: '#/components/schemas/ErrorCode'
+          description: Стабильный код ошибки.
+        message:
+          type: string
+          description: Русский текст ошибки; можно показать как есть.
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+          description: Ошибки полей, если это ошибка валидации.
+      description: Тело ошибки API.
+    ErrorCode:
+      type: string
+      enum:
+        - VALIDATION_ERROR
+        - NOT_FOUND
+        - INTERNAL_ERROR
+      description: Стабильный код ошибки API; интерфейс принимает решения по нему.
+    ErrorDetail:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          description: Имя поля, как в теле или параметрах запроса.
+        message:
+          type: string
+          description: Русский текст ошибки для показа рядом с полем.
+      description: Ошибка конкретного поля запроса.
     HealthBody:
       type: object
       required:
@@ -41,6 +176,90 @@ components:
       description: Тело ответа проверки живости.
       example:
         status: ok
+    MeetingType:
+      type: object
+      required:
+        - id
+        - name
+        - durationMinutes
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Идентификатор, назначает сервер.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Название, от 1 до 100 символов после удаления пробелов по краям.
+        description:
+          type: string
+          maxLength: 1000
+          description: Описание, до 1000 символов. Пустое описание не возвращается.
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 5
+          maximum: 240
+          description: Длительность встречи в минутах, от 5 до 240.
+        createdAt:
+          type: string
+          format: date-time
+          description: Момент создания в UTC, ISO 8601.
+      description: |-
+        Тип встречи — настройка, по которой гость бронирует слот.
+
+        Созданный тип сразу виден на странице записи. Названия не уникальны:
+        типы различаются по `id`.
+    MeetingTypeCreate:
+      type: object
+      required:
+        - name
+        - durationMinutes
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Название, от 1 до 100 символов после удаления пробелов по краям.
+        description:
+          type: string
+          maxLength: 1000
+          description: Описание, до 1000 символов; пустая строка допустима.
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 5
+          maximum: 240
+          description: Длительность встречи в минутах, от 5 до 240.
+      description: Поля создания типа встречи.
+    MeetingTypeList:
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - limit
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MeetingType'
+          description: Типы встреч на текущей странице, от старых к новым.
+        total:
+          type: integer
+          format: int32
+          description: Общее количество типов встреч.
+        page:
+          type: integer
+          format: int32
+          description: Номер текущей страницы, начиная с 1.
+        limit:
+          type: integer
+          format: int32
+          description: Размер страницы, от 1 до 100.
+      description: Страница списка типов встреч.
 servers:
   - url: http://localhost:3000
     description: Локальный сервер
