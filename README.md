@@ -60,16 +60,37 @@
 ## Запуск и проверки
 
 ```bash
-mise run setup   # зависимости, OpenAPI и SDK, Git-хуки
-mise run dev     # API и фронтенд как daemons
-mise run check   # линтеры, типы, тесты и сборка — то же, что в CI
+mise run setup      # зависимости, OpenAPI и SDK, Git-хуки
+mise run dev        # API и фронтенд как daemons
+mise run check      # линтеры, типы, тесты и сборка — быстрый job CI
 mise run check:e2e  # сборка и браузерные сценарии Playwright
 ```
+
+`mise run check` не запускает браузер: он укладывается в минуты и выполняется
+перед пушем. `mise run check:e2e` собирает проект, поднимает Fastify и
+preview-сборку фронтенда и прогоняет Playwright с одним воркером.
 
 API — `http://localhost:3000`, фронтенд — `http://localhost:5173`.
 Кабинет владельца — `http://localhost:5173/owner`, он открыт без входа.
 Остановить фоновые сервисы: `mise daemons stop`.
-CI запускается на push в `main` и на pull request.
+
+CI повторяет этот порядок двумя job: сначала быстрый `check`, затем `e2e` с
+зависимостью от него. Оба job запускаются на pull request и push в `main`.
+`e2e` ставит только Chromium, ограничен 20 минутами и при падении сохраняет
+трейсы Playwright артефактом. Pre-push hook выполняет только `mise run check`.
+
+## Версии и релизы
+
+Версию и changelog ведёт [release-please](https://github.com/googleapis/release-please) в manifest-режиме: один корневой пакет, `release-type: node`, стартовая версия `0.1.0`.
+
+- `fix:` — patch: `0.1.0` → `0.1.1`.
+- `feat:` — minor: `0.1.0` → `0.2.0`.
+- Breaking change (`!` после типа или футер `BREAKING CHANGE:`) — major: `0.1.0` → `1.0.0`.
+- `chore:`, `docs:`, `test:` и `refactor:` релиз не двигают.
+
+После пуша в `main` workflow `Release` создаёт или обновляет pull request с новой версией в `package.json` и записью в `CHANGELOG.md`. Мерж этого PR создаёт тег `vX.Y.Z` и GitHub Release; вручную теги и релизы не создаются.
+
+Пакеты `api`, `server` и `web` приватные: в npm ничего не публикуется, своих версий и релизов у них нет, workspace-версии не бампаются. Версия контракта в TypeSpec (`@info(version: "0.1.0")`) автоматически не меняется.
 
 ## Ограничения
 
