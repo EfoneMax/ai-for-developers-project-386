@@ -1,6 +1,4 @@
 import type { FastifyInstance } from "fastify";
-import type { BookingsStore } from "../bookings/store.js";
-import { generateSlots } from "../domain/slots.js";
 import { apiError, validationError } from "../errors.js";
 import type { MeetingTypesStore } from "./store.js";
 import { parseCreateMeetingType, parseListQuery, parseUpdateMeetingType } from "./validation.js";
@@ -8,11 +6,10 @@ import { parseCreateMeetingType, parseListQuery, parseUpdateMeetingType } from "
 /** Зависимости маршрутов типов встреч. */
 export interface MeetingTypesRoutesOptions {
   store: MeetingTypesStore;
-  bookings: BookingsStore;
   now: () => Date;
 }
 
-/** Регистрирует маршруты типов встреч. */
+/** Регистрирует CRUD типов встреч; доступность живёт в отдельном модуле. */
 export function registerMeetingTypesRoutes(
   app: FastifyInstance,
   options: MeetingTypesRoutesOptions,
@@ -67,21 +64,6 @@ export function registerMeetingTypesRoutes(
     }
 
     return reply.status(204).send();
-  });
-
-  app.get<{ Params: { id: string } }>("/api/meeting-types/:id/slots", async (request, reply) => {
-    const meetingType = options.store.get(request.params.id);
-    if (meetingType === undefined) {
-      return reply.status(404).send(meetingTypeNotFound());
-    }
-
-    return {
-      slots: generateSlots(
-        meetingType.durationMinutes,
-        options.now(),
-        options.bookings.busyIntervals(),
-      ),
-    };
   });
 }
 

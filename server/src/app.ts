@@ -4,6 +4,7 @@ import { createBookingsStore, type BookingsStore } from "./bookings/store.js";
 import { apiError } from "./errors.js";
 import { createMeetingTypesStore, type MeetingTypesStore } from "./meeting-types/store.js";
 import { registerMeetingTypesRoutes } from "./meeting-types/routes.js";
+import { registerSlotsRoutes } from "./slots/routes.js";
 
 export interface CreateAppOptions {
   logger?: boolean;
@@ -32,10 +33,16 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   app.setErrorHandler((error: FastifyError, _request, reply) => {
     const statusCode = error.statusCode ?? 500;
 
-    if (statusCode >= 400 && statusCode < 500) {
+    if (statusCode === 400) {
       return reply.status(400).send(apiError("VALIDATION_ERROR", "Не удалось прочитать запрос"));
     }
 
+    if (statusCode === 404) {
+      return reply.status(404).send(apiError("NOT_FOUND", "Маршрут не найден"));
+    }
+
+    // Любой другой статус (413, 415 и прочие сбои Fastify) не входит
+    // в контракт: клиент получает только задокументированный 500.
     app.log.error(error);
     return reply.status(500).send(apiError("INTERNAL_ERROR", "Внутренняя ошибка сервера"));
   });
@@ -46,7 +53,8 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const bookings = options.bookingsStore ?? createBookingsStore();
   const now = options.now ?? (() => new Date());
 
-  registerMeetingTypesRoutes(app, { store: meetingTypes, bookings, now });
+  registerMeetingTypesRoutes(app, { store: meetingTypes, now });
+  registerSlotsRoutes(app, { meetingTypes, bookings, now });
   registerBookingsRoutes(app, { meetingTypes, bookings, now });
 
   return app;
