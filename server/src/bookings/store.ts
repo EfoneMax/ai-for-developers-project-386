@@ -2,17 +2,17 @@ import { randomUUID } from "node:crypto";
 import { overlaps, type Interval } from "../domain/bookings.js";
 
 /** Статус брони: отменённая больше не занимает слот. */
-export type BookingStatus = "confirmed" | "cancelled";
+type BookingStatus = "confirmed" | "cancelled";
 
 /** Снимок типа встречи на момент записи (ADR-0006). */
-export interface BookingMeetingTypeSnapshot {
+interface BookingMeetingTypeSnapshot {
   id: string;
   name: string;
   durationMinutes: number;
 }
 
 /** Контактные данные гостя; гость не учётная запись. */
-export interface BookingGuest {
+interface BookingGuest {
   name: string;
   email: string;
   comment?: string;
@@ -29,7 +29,7 @@ export interface Booking {
 }
 
 /** Данные новой брони; интервал уже посчитан по снимку типа. */
-export interface NewBooking {
+interface NewBooking {
   meetingType: BookingMeetingTypeSnapshot;
   start: string;
   end: string;
