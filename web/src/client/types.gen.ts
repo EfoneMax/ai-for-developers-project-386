@@ -25,7 +25,7 @@ export type ErrorBody = {
 /**
  * Стабильный код ошибки API; интерфейс принимает решения по нему.
  */
-export type ErrorCode = 'VALIDATION_ERROR' | 'NOT_FOUND' | 'INTERNAL_ERROR';
+export type ErrorCode = 'VALIDATION_ERROR' | 'MEETING_TYPE_NOT_FOUND' | 'NOT_FOUND' | 'INTERNAL_ERROR';
 
 /**
  * Ошибка конкретного поля запроса.
@@ -118,6 +118,33 @@ export type MeetingTypeList = {
      * Размер страницы, от 1 до 100.
      */
     limit: number;
+};
+
+/**
+ * Слот — интервал времени, который гость может забронировать.
+ *
+ * Начало и конец — абсолютные моменты UTC. Конец равен началу плюс
+ * длительность типа встречи.
+ */
+export type Slot = {
+    /**
+     * Начало слота в UTC, ISO 8601.
+     */
+    start: string;
+    /**
+     * Конец слота в UTC, ISO 8601.
+     */
+    end: string;
+};
+
+/**
+ * Свободные слоты типа встречи за всё окно записи.
+ */
+export type SlotList = {
+    /**
+     * Свободные слоты, отсортированные по началу.
+     */
+    slots: Array<Slot>;
 };
 
 /**
@@ -220,3 +247,41 @@ export type CreateMeetingTypeResponses = {
 };
 
 export type CreateMeetingTypeResponse = CreateMeetingTypeResponses[keyof CreateMeetingTypeResponses];
+
+export type ListMeetingTypeSlotsData = {
+    body?: never;
+    path: {
+        /**
+         * Идентификатор типа встречи.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/meeting-types/{id}/slots';
+};
+
+export type ListMeetingTypeSlotsErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type ListMeetingTypeSlotsError = ListMeetingTypeSlotsErrors[keyof ListMeetingTypeSlotsErrors];
+
+export type ListMeetingTypeSlotsResponses = {
+    /**
+     * Ответ со свободными слотами типа встречи.
+     */
+    200: SlotList;
+};
+
+export type ListMeetingTypeSlotsResponse = ListMeetingTypeSlotsResponses[keyof ListMeetingTypeSlotsResponses];

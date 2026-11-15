@@ -1,13 +1,36 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, CalendarClock } from "lucide-react";
+import type { MeetingType } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import ErrorBanner from "@/components/ErrorBanner";
 import MeetingTypeCard from "@/features/meeting-types/MeetingTypeCard";
 import MeetingTypeListSkeleton from "@/features/meeting-types/MeetingTypeListSkeleton";
 import { useMeetingTypes } from "@/features/meeting-types/useMeetingTypes";
+import BookingSlotStep from "@/features/slots/BookingSlotStep";
+import { getMoscowWindowDays } from "@/features/slots/moscow-days";
 
-export default function BookingPage() {
+interface BookingPageProps {
+  /** Момент, от которого отсчитывается окно записи; по умолчанию — текущий. */
+  now?: () => Date;
+}
+
+export default function BookingPage({ now = () => new Date() }: BookingPageProps) {
   const { state, reload } = useMeetingTypes();
+  const [selectedType, setSelectedType] = useState<MeetingType | null>(null);
+  const [windowDays] = useState(() => getMoscowWindowDays(now()));
+
+  if (selectedType !== null) {
+    return (
+      <BookingSlotStep
+        meetingType={selectedType}
+        days={windowDays}
+        onBack={() => {
+          setSelectedType(null);
+        }}
+      />
+    );
+  }
 
   return (
     <section className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -16,8 +39,8 @@ export default function BookingPage() {
         Выберите тип встречи
       </h1>
       <p className="mt-4 max-w-[52ch] leading-relaxed text-[#4b5a51]">
-        Владелец заранее задал название, описание и длительность. Свободные слоты появятся на
-        следующем шаге.
+        Владелец заранее задал название, описание и длительность. На следующем шаге вы увидите
+        свободные слоты в своём часовом поясе.
       </p>
 
       <div className="mt-10">
@@ -51,7 +74,7 @@ export default function BookingPage() {
           <ul className="grid gap-4 sm:grid-cols-2">
             {state.items.map((meetingType) => (
               <li key={meetingType.id}>
-                <MeetingTypeCard meetingType={meetingType} />
+                <MeetingTypeCard meetingType={meetingType} onSelect={setSelectedType} />
               </li>
             ))}
           </ul>

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateMeetingTypeData, CreateMeetingTypeErrors, CreateMeetingTypeResponses, GetHealthData, GetHealthResponses, ListMeetingTypesData, ListMeetingTypesErrors, ListMeetingTypesResponses } from './types.gen';
+import type { CreateMeetingTypeData, CreateMeetingTypeErrors, CreateMeetingTypeResponses, GetHealthData, GetHealthResponses, ListMeetingTypesData, ListMeetingTypesErrors, ListMeetingTypeSlotsData, ListMeetingTypeSlotsErrors, ListMeetingTypeSlotsResponses, ListMeetingTypesResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -39,3 +39,12 @@ export const createMeetingType = <ThrowOnError extends boolean = false>(options:
         ...options.headers
     }
 });
+
+/**
+ * Свободные слоты типа встречи за всё окно записи.
+ *
+ * Окно — 14 московских дат, старты по будням с 09:00 до 18:00. Маршрут
+ * не принимает дату, диапазон или часовой пояс: клиент показывает время
+ * в поясе гостя сам.
+ */
+export const listMeetingTypeSlots = <ThrowOnError extends boolean = false>(options: Options<ListMeetingTypeSlotsData, ThrowOnError>): RequestResult<ListMeetingTypeSlotsResponses, ListMeetingTypeSlotsErrors, ThrowOnError> => (options.client ?? client).get<ListMeetingTypeSlotsResponses, ListMeetingTypeSlotsErrors, ThrowOnError>({ url: '/api/meeting-types/{id}/slots', ...options });

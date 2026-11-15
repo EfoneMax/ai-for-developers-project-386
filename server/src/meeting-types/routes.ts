@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { validationError } from "../errors.js";
+import { generateSlots } from "../domain/slots.js";
+import { apiError, validationError } from "../errors.js";
 import type { MeetingTypesStore } from "./store.js";
 import { parseCreateMeetingType, parseListQuery } from "./validation.js";
 
@@ -33,5 +34,14 @@ export function registerMeetingTypesRoutes(
     }
 
     return reply.status(201).send(options.store.create(parsed.value, options.now()));
+  });
+
+  app.get<{ Params: { id: string } }>("/api/meeting-types/:id/slots", async (request, reply) => {
+    const meetingType = options.store.get(request.params.id);
+    if (meetingType === undefined) {
+      return reply.status(404).send(apiError("MEETING_TYPE_NOT_FOUND", "Тип встречи не найден"));
+    }
+
+    return { slots: generateSlots(meetingType.durationMinutes, options.now()) };
   });
 }

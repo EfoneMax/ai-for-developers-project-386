@@ -124,10 +124,39 @@ model MeetingTypeResponse {
   @body body: MeetingType;
 }
 
+/**
+ * Слот — интервал времени, который гость может забронировать.
+ *
+ * Начало и конец — абсолютные моменты UTC. Конец равен началу плюс
+ * длительность типа встречи.
+ */
+model Slot {
+  /** Начало слота в UTC, ISO 8601. */
+  start: utcDateTime;
+
+  /** Конец слота в UTC, ISO 8601. */
+  end: utcDateTime;
+}
+
+/** Свободные слоты типа встречи за всё окно записи. */
+model SlotList {
+  /** Свободные слоты, отсортированные по началу. */
+  slots: Slot[];
+}
+
+/** Ответ со свободными слотами типа встречи. */
+model SlotListResponse {
+  @statusCode statusCode: 200;
+  @body body: SlotList;
+}
+
 /** Стабильный код ошибки API; интерфейс принимает решения по нему. */
 enum ErrorCode {
   /** Неверные поля тела запроса или параметры запроса. */
   VALIDATION_ERROR: "VALIDATION_ERROR",
+
+  /** Запрошенный тип встречи не существует. */
+  MEETING_TYPE_NOT_FOUND: "MEETING_TYPE_NOT_FOUND",
 
   /** Запрошенный ресурс не существует. */
   NOT_FOUND: "NOT_FOUND",
@@ -174,3 +203,18 @@ op listMeetingTypes(...MeetingTypeListQuery): MeetingTypeListResponse | ErrorRes
 @route("/meeting-types")
 @post
 op createMeetingType(@body body: MeetingTypeCreate): MeetingTypeResponse | ErrorResponse;
+
+/**
+ * Свободные слоты типа встречи за всё окно записи.
+ *
+ * Окно — 14 московских дат, старты по будням с 09:00 до 18:00. Маршрут
+ * не принимает дату, диапазон или часовой пояс: клиент показывает время
+ * в поясе гостя сам.
+ */
+@tag("Meeting Types")
+@route("/meeting-types/{id}/slots")
+@get
+op listMeetingTypeSlots(
+  /** Идентификатор типа встречи. */
+  @path id: string,
+): SlotListResponse | ErrorResponse;

@@ -27,6 +27,7 @@ interface MeetingTypePage {
 /** Хранилище типов встреч в памяти процесса. */
 export interface MeetingTypesStore {
   list(params: { page: number; limit: number }): MeetingTypePage;
+  get(id: string): MeetingType | undefined;
   create(input: NewMeetingType, createdAt: Date): MeetingType;
 }
 
@@ -47,6 +48,10 @@ export function createMeetingTypesStore(): MeetingTypesStore {
         page,
         limit,
       };
+    },
+
+    get(id) {
+      return meetingTypes.find((meetingType) => meetingType.id === id);
     },
 
     create(input, createdAt) {
