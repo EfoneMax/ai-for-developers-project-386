@@ -30,12 +30,7 @@ type Step =
   | { kind: "contacts"; meetingType: MeetingType; slot: Slot; attempt: number }
   | { kind: "confirmed"; booking: Booking };
 
-interface BookingPageProps {
-  /** Момент, от которого отсчитывается окно записи; по умолчанию — текущий. */
-  now?: () => Date;
-}
-
-export default function BookingPage({ now = () => new Date() }: BookingPageProps) {
+export default function BookingPage() {
   const { state, reload } = useMeetingTypes();
   const { timeZone, setTimeZone } = useGuestTimeZone();
   const [step, setStep] = useState<Step>({ kind: "type" });
@@ -98,7 +93,6 @@ export default function BookingPage({ now = () => new Date() }: BookingPageProps
       <BookingSlotStep
         key={`${meetingType.id}:${attempt}`}
         meetingType={meetingType}
-        now={now}
         timeZone={timeZone}
         onTimeZoneChange={setTimeZone}
         notice={notice}

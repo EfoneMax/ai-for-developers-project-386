@@ -82,8 +82,11 @@ describe("GET /api/meeting-types/{id}/slots", () => {
     const app = buildApp("2026-11-12T09:15:00.000Z");
     const meetingType = await createMeetingType(app, 30);
 
-    const slots = (await getSlots(app, meetingType.id)).json().slots as { start: string }[];
-    const days = [...new Set(slots.map((slot) => moscowDate(slot.start)))];
+    const body = (await getSlots(app, meetingType.id)).json() as {
+      slots: { start: string }[];
+      windowDays: string[];
+    };
+    const days = [...new Set(body.slots.map((slot) => moscowDate(slot.start)))];
 
     expect(days).toEqual([
       "2026-11-12",
@@ -93,6 +96,22 @@ describe("GET /api/meeting-types/{id}/slots", () => {
       "2026-11-18",
       "2026-11-19",
       "2026-11-20",
+      "2026-11-23",
+      "2026-11-24",
+      "2026-11-25",
+    ]);
+    expect(body.windowDays).toEqual([
+      "2026-11-12",
+      "2026-11-13",
+      "2026-11-14",
+      "2026-11-15",
+      "2026-11-16",
+      "2026-11-17",
+      "2026-11-18",
+      "2026-11-19",
+      "2026-11-20",
+      "2026-11-21",
+      "2026-11-22",
       "2026-11-23",
       "2026-11-24",
       "2026-11-25",

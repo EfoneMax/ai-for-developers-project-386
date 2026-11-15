@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateSlots } from "../src/domain/slots.js";
+import { bookingWindowDays, generateSlots } from "../src/domain/slots.js";
 
 /** Московская дата момента: пояс владельца — постоянный UTC+3. */
 function moscowDate(instant: string): string {
@@ -165,5 +165,33 @@ describe("край рабочего дня", () => {
     );
 
     expect(today).toEqual([]);
+  });
+});
+
+describe("даты окна записи", () => {
+  it("возвращает 14 московских дат подряд, включая выходные", () => {
+    const days = bookingWindowDays(new Date("2026-11-12T09:15:00Z"));
+
+    expect(days).toEqual([
+      "2026-11-12",
+      "2026-11-13",
+      "2026-11-14",
+      "2026-11-15",
+      "2026-11-16",
+      "2026-11-17",
+      "2026-11-18",
+      "2026-11-19",
+      "2026-11-20",
+      "2026-11-21",
+      "2026-11-22",
+      "2026-11-23",
+      "2026-11-24",
+      "2026-11-25",
+    ]);
+  });
+
+  it("начинает окно с московской даты, а не UTC", () => {
+    expect(bookingWindowDays(new Date("2026-11-12T20:59:00Z"))[0]).toBe("2026-11-12");
+    expect(bookingWindowDays(new Date("2026-11-12T21:00:00Z"))[0]).toBe("2026-11-13");
   });
 });

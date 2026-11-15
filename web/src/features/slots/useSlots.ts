@@ -1,10 +1,10 @@
 import { useCallback } from "react";
-import type { Slot } from "@/client/types.gen";
+import type { SlotList } from "@/client/types.gen";
 import { useRemoteData, type RemoteState } from "@/lib/use-remote-data";
 import { listMeetingTypeSlots } from "./api";
 
-/** Состояние загрузки свободных слотов типа встречи. */
-export type SlotsState = RemoteState<Slot[]>;
+/** Состояние загрузки свободных слотов и дат окна типа встречи. */
+export type SlotsState = RemoteState<SlotList>;
 
 /**
  * Загружает слоты при монтировании и позволяет перезагрузить их —

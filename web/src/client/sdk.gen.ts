@@ -104,8 +104,9 @@ export const updateMeetingType = <ThrowOnError extends boolean = false>(options:
  * Свободные слоты типа встречи за всё окно записи.
  *
  * Окно — 14 московских дат, начиная с сегодняшней. Часовой пояс владельца —
- * `Europe/Moscow` (UTC+3), старты по будням с 09:00 до 18:00. Маршрут
- * не принимает дату, диапазон или часовой пояс: клиент показывает время
- * в поясе гостя сам.
+ * `Europe/Moscow` (UTC+3), старты по будням с 09:00 до 18:00. Сервер отдаёт
+ * и свободные слоты, и сами даты окна: гость видит все 14 дат, включая
+ * выходные и дни без слотов. Маршрут не принимает дату, диапазон или
+ * часовой пояс: клиент показывает время в поясе гостя сам.
  */
 export const listMeetingTypeSlots = <ThrowOnError extends boolean = false>(options: Options<ListMeetingTypeSlotsData, ThrowOnError>): RequestResult<ListMeetingTypeSlotsResponses, ListMeetingTypeSlotsErrors, ThrowOnError> => (options.client ?? client).get<ListMeetingTypeSlotsResponses, ListMeetingTypeSlotsErrors, ThrowOnError>({ url: '/api/meeting-types/{id}/slots', ...options });

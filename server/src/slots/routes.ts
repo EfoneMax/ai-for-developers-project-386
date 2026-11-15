@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { BookingsStore } from "../bookings/store.js";
-import { generateSlots } from "../domain/slots.js";
+import { bookingWindowDays, generateSlots } from "../domain/slots.js";
 import { apiError } from "../errors.js";
 import type { MeetingTypesStore } from "../meeting-types/store.js";
 
@@ -24,12 +24,11 @@ export function registerSlotsRoutes(app: FastifyInstance, options: SlotsRoutesOp
       return reply.status(404).send(apiError("MEETING_TYPE_NOT_FOUND", "Тип встречи не найден"));
     }
 
+    const now = options.now();
+
     return {
-      slots: generateSlots(
-        meetingType.durationMinutes,
-        options.now(),
-        options.bookings.busyIntervals(),
-      ),
+      slots: generateSlots(meetingType.durationMinutes, now, options.bookings.busyIntervals()),
+      windowDays: bookingWindowDays(now),
     };
   });
 }

@@ -31,8 +31,10 @@ const meetingType = {
   createdAt: "2026-11-12T09:00:00.000Z",
 };
 
-/** Четверг, 12:15 по Москве: окно 12–25 ноября 2026. */
-const NOW = new Date("2026-11-12T09:15:00Z");
+/** Московские даты окна, которые возвращает сервер: 12–25 ноября 2026. */
+const windowDays = Array.from({ length: 14 }, (_, index) =>
+  new Date(Date.UTC(2026, 10, 12 + index)).toISOString().slice(0, 10),
+);
 
 /** Слоты только на 12 и 13 ноября: остальные дни окна пусты. */
 const slots = [
@@ -40,6 +42,10 @@ const slots = [
   { start: "2026-11-12T10:30:00.000Z", end: "2026-11-12T11:00:00.000Z" },
   { start: "2026-11-13T06:00:00.000Z", end: "2026-11-13T06:30:00.000Z" },
 ];
+
+function slotsResponse(list = slots, days = windowDays) {
+  return { slots: list, windowDays: days };
+}
 
 function renderAt(path: string) {
   return render(
@@ -52,7 +58,7 @@ function renderAt(path: string) {
 function renderBookingPage() {
   return render(
     <MemoryRouter initialEntries={["/book"]}>
-      <BookingPage now={() => NOW} />
+      <BookingPage />
     </MemoryRouter>,
   );
 }
@@ -77,7 +83,7 @@ beforeEach(() => {
     page: 1,
     limit: 100,
   });
-  vi.mocked(listMeetingTypeSlots).mockResolvedValue(slots);
+  vi.mocked(listMeetingTypeSlots).mockResolvedValue(slotsResponse());
 });
 
 afterEach(() => {
@@ -226,7 +232,7 @@ describe("шаг выбора дня и слота", () => {
 
   it("показывает сообщение вместо календаря, если свободных слотов нет во всём окне", async () => {
     const user = userEvent.setup();
-    vi.mocked(listMeetingTypeSlots).mockResolvedValue([]);
+    vi.mocked(listMeetingTypeSlots).mockResolvedValue(slotsResponse([]));
     renderBookingPage();
 
     await chooseMeetingType(user);
@@ -239,7 +245,7 @@ describe("шаг выбора дня и слота", () => {
     const user = userEvent.setup();
     vi.mocked(listMeetingTypeSlots)
       .mockRejectedValueOnce(new Error("network"))
-      .mockResolvedValueOnce(slots);
+      .mockResolvedValueOnce(slotsResponse());
     renderBookingPage();
 
     await chooseMeetingType(user);
@@ -264,22 +270,21 @@ describe("шаг выбора дня и слота", () => {
     expect(screen.queryByText("Не удалось загрузить слоты")).toBeNull();
   });
 
-  it("добавляет в календарь день слота за пределами клиентского окна", async () => {
+  it("строит календарь по датам окна из ответа сервера", async () => {
     const user = userEvent.setup();
-    vi.mocked(listMeetingTypeSlots).mockResolvedValue([
-      { start: "2026-11-26T06:00:00.000Z", end: "2026-11-26T06:30:00.000Z" },
-    ]);
+    const serverDays = Array.from({ length: 14 }, (_, index) =>
+      new Date(Date.UTC(2026, 10, 10 + index)).toISOString().slice(0, 10),
+    );
+    vi.mocked(listMeetingTypeSlots).mockResolvedValue(slotsResponse(slots, serverDays));
     renderBookingPage();
 
     await chooseMeetingType(user);
 
     await waitFor(() => {
-      expect(dayGroup().getAllByRole("button")).toHaveLength(15);
+      expect(dayGroup().getAllByRole("button")).toHaveLength(14);
     });
-    const buttons = dayGroup().getAllByRole("button");
-    const extraDay = buttons.find((button) => button.textContent?.includes("26 нояб."));
-
-    expect(extraDay?.hasAttribute("disabled")).toBe(false);
+    expect(dayGroup().getByText("вт, 10 нояб.")).toBeTruthy();
+    expect(dayGroup().queryByText("25 нояб.")).toBeNull();
   });
 
   it("возвращает к выбору типа по кнопке «Назад»", async () => {
@@ -443,7 +448,9 @@ describe("шаг контактов и подтверждение", () => {
 
   it("при занятом слоте показывает баннер, обновляет слоты и сохраняет контакты", async () => {
     const user = userEvent.setup();
-    vi.mocked(listMeetingTypeSlots).mockResolvedValueOnce(slots).mockResolvedValueOnce([slots[2]!]);
+    vi.mocked(listMeetingTypeSlots)
+      .mockResolvedValueOnce(slotsResponse())
+      .mockResolvedValueOnce(slotsResponse([slots[2]!]));
     vi.mocked(createBooking).mockRejectedValue(
       new ApiError("SLOT_TAKEN", "Это время только что заняли"),
     );

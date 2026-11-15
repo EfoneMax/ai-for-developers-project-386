@@ -3,15 +3,13 @@ import { ArrowLeft, CalendarX } from "lucide-react";
 import type { MeetingType, Slot } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import ErrorBanner from "@/components/ErrorBanner";
-import { getMoscowWindowDays, moscowDateKey, withSlotDays } from "./moscow-days";
+import { moscowDateKey, moscowDaysFromKeys } from "./moscow-days";
 import SlotCalendar from "./SlotCalendar";
 import SlotListSkeleton from "./SlotListSkeleton";
 import { useSlots } from "./useSlots";
 
 interface BookingSlotStepProps {
   meetingType: MeetingType;
-  /** Часы клиента: от них строится окно; ответ сервера дополняет его датами. */
-  now: () => Date;
   timeZone: string;
   onTimeZoneChange: (timeZone: string) => void;
   /** Сообщение над календарём: например, слот только что заняли. */
@@ -30,12 +28,10 @@ interface BookingSlotStepProps {
  * Слот задан абсолютным моментом UTC, поэтому смена пояса только
  * перерисовывает время и не сбрасывает выбор. Список слотов загружается
  * заново при монтировании шага, в том числе после конфликта бронирования.
- * Дни календаря пересчитываются при загрузке слотов: окно клиента
- * объединяется с московскими датами из ответа, чтобы ни один слот не пропал.
+ * Даты окна приходят с сервером: клиент не строит их по своим часам.
  */
 export default function BookingSlotStep({
   meetingType,
-  now,
   timeZone,
   onTimeZoneChange,
   notice,
@@ -54,10 +50,10 @@ export default function BookingSlotStep({
     initialSlotStart ?? null,
   );
 
-  // Дни считаются при каждом рендере: окно строится по часам клиента,
-  // а даты пришедших слотов добавляются к нему, поэтому ни один слот не теряется.
-  const windowDays = getMoscowWindowDays(now());
-  const days = state.status === "ready" ? withSlotDays(windowDays, state.data) : windowDays;
+  // Даты окна и слоты приходят одним ответом: «сегодня» считает сервер,
+  // а не часы браузера.
+  const days = state.status === "ready" ? moscowDaysFromKeys(state.data.windowDays) : [];
+  const slots = state.status === "ready" ? state.data.slots : [];
 
   const missingType = state.status === "error" && state.code === "MEETING_TYPE_NOT_FOUND";
 
@@ -69,7 +65,7 @@ export default function BookingSlotStep({
 
   const selectedSlot =
     state.status === "ready"
-      ? state.data.find((slot) => slot.start === selectedSlotStart)
+      ? state.data.slots.find((slot) => slot.start === selectedSlotStart)
       : undefined;
 
   return (
@@ -104,7 +100,7 @@ export default function BookingSlotStep({
         </div>
       ) : null}
 
-      {state.status === "ready" && state.data.length === 0 ? (
+      {state.status === "ready" && slots.length === 0 ? (
         <div className="mt-8 rounded-3xl border border-white/60 bg-white/80 p-8 text-center shadow-[0_30px_80px_rgba(40,55,46,0.12)] sm:p-12">
           <span className="mx-auto grid size-12 place-items-center rounded-full bg-[#e6efe8] text-[#2f6b4f]">
             <CalendarX className="size-6" />
@@ -119,11 +115,11 @@ export default function BookingSlotStep({
         </div>
       ) : null}
 
-      {state.status === "ready" && state.data.length > 0 ? (
+      {state.status === "ready" && slots.length > 0 ? (
         <>
           <SlotCalendar
             days={days}
-            slots={state.data}
+            slots={slots}
             timeZone={timeZone}
             onTimeZoneChange={onTimeZoneChange}
             selectedDayKey={selectedDayKey}

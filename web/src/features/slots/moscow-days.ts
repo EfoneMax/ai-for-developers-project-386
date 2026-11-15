@@ -12,9 +12,6 @@ export interface MoscowDay {
   isWeekend: boolean;
 }
 
-/** Окно записи — 14 московских дат, включая сегодняшнюю. */
-const BOOKING_WINDOW_DAYS = 14;
-
 const MOSCOW_TIME_ZONE = "Europe/Moscow";
 
 const moscowDateParts = new Intl.DateTimeFormat("en-CA", {
@@ -68,40 +65,13 @@ function moscowDay(key: string): MoscowDay {
 }
 
 /**
- * Все даты окна записи: 14 подряд идущих московских дат от сегодняшней.
- * Выходные входят в окно и не продлевают его.
- */
-export function getMoscowWindowDays(now: Date): MoscowDay[] {
-  const today = moscowDateParts.formatToParts(now);
-  const year = Number(partValue(today, "year"));
-  const month = Number(partValue(today, "month"));
-  const day = Number(partValue(today, "day"));
-
-  return Array.from({ length: BOOKING_WINDOW_DAYS }, (_, index) => {
-    const date = new Date(Date.UTC(year, month - 1, day + index));
-
-    return moscowDay(date.toISOString().slice(0, 10));
-  });
-}
-
-/**
- * Дни календаря: окно клиента плюс все московские даты из ответа сервера.
+ * Дни календаря по датам окна, которые вернул сервер.
  *
- * Часы браузера и сервера могут расходиться, а окно сдвигается в московскую
- * полночь, поэтому день, которого нет в клиентском окне, всё равно получает
- * кнопку — иначе пришедший слот выглядел бы скрытым.
+ * «Сегодня» и весь список дат считает сервер, поэтому часы браузера
+ * не могут расширить или сдвинуть окно записи.
  */
-export function withSlotDays(days: MoscowDay[], slots: Slot[]): MoscowDay[] {
-  const byKey = new Map(days.map((day) => [day.key, day]));
-
-  for (const slot of slots) {
-    const key = moscowDateKey(slot.start);
-    if (!byKey.has(key)) {
-      byKey.set(key, moscowDay(key));
-    }
-  }
-
-  return [...byKey.values()].sort((a, b) => a.key.localeCompare(b.key));
+export function moscowDaysFromKeys(keys: readonly string[]): MoscowDay[] {
+  return [...keys].sort((a, b) => a.localeCompare(b)).map(moscowDay);
 }
 
 /**

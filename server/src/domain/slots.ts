@@ -1,5 +1,5 @@
 import { overlaps, type Interval } from "../domain/bookings.js";
-import { startOfTimeZoneDay, timeZoneOffsetMinutes } from "../domain/time-zone.js";
+import { OWNER_TIME_ZONE, startOfTimeZoneDay, timeZoneOffsetMinutes } from "../domain/time-zone.js";
 
 /** Слот — интервал, который гость может забронировать. */
 export interface Slot {
@@ -25,6 +25,36 @@ function isWorkday(dayStart: number, offsetMinutes: number): boolean {
   const weekday = new Date(dayStart + offsetMinutes * MS_PER_MINUTE).getUTCDay();
 
   return weekday >= 1 && weekday <= 5;
+}
+
+const ownerDateFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: OWNER_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** Московская дата момента в формате `YYYY-MM-DD`. */
+function ownerDate(instant: Date): string {
+  const parts = ownerDateFormatter.formatToParts(instant);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
+
+/**
+ * Московские даты окна записи: 14 подряд, начиная с сегодняшней.
+ *
+ * Возвращается вместе со слотами, чтобы клиент не строил окно по своим
+ * часам: «сегодня» считает сервер.
+ */
+export function bookingWindowDays(now: Date): string[] {
+  const firstDay = startOfTimeZoneDay(now);
+
+  return Array.from({ length: BOOKING_WINDOW_DAYS }, (_, index) =>
+    ownerDate(new Date(firstDay + index * MS_PER_DAY)),
+  );
 }
 
 /**

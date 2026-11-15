@@ -1,84 +1,38 @@
 import { describe, expect, it } from "vitest";
-import {
-  getMoscowWindowDays,
-  groupSlotsByMoscowDay,
-  moscowDateKey,
-  withSlotDays,
-} from "./moscow-days";
+import { groupSlotsByMoscowDay, moscowDateKey, moscowDaysFromKeys } from "./moscow-days";
 
-describe("окно записи на клиенте", () => {
-  it("строит 14 московских дат от сегодняшней", () => {
-    const days = getMoscowWindowDays(new Date("2026-11-12T09:15:00Z"));
+describe("дни календаря по датам сервера", () => {
+  it("подписывает даты окна по-русски", () => {
+    const days = moscowDaysFromKeys(["2026-11-25", "2026-11-12"]);
 
-    expect(days.map((day) => day.key)).toEqual([
-      "2026-11-12",
-      "2026-11-13",
-      "2026-11-14",
-      "2026-11-15",
-      "2026-11-16",
-      "2026-11-17",
-      "2026-11-18",
-      "2026-11-19",
-      "2026-11-20",
-      "2026-11-21",
-      "2026-11-22",
-      "2026-11-23",
-      "2026-11-24",
-      "2026-11-25",
+    expect(days).toEqual([
+      {
+        key: "2026-11-12",
+        weekday: "чт",
+        dateLabel: "12 нояб.",
+        isWeekend: false,
+      },
+      {
+        key: "2026-11-25",
+        weekday: "ср",
+        dateLabel: "25 нояб.",
+        isWeekend: false,
+      },
     ]);
-  });
-
-  it("подписывает день недельного календаря по-русски", () => {
-    const [firstDay] = getMoscowWindowDays(new Date("2026-11-12T09:15:00Z"));
-
-    expect(firstDay).toMatchObject({
-      key: "2026-11-12",
-      weekday: "чт",
-      dateLabel: "12 нояб.",
-      isWeekend: false,
-    });
   });
 
   it("помечает субботу и воскресенье выходными", () => {
-    const days = getMoscowWindowDays(new Date("2026-11-12T09:15:00Z"));
-    const weekend = days.filter((day) => day.isWeekend);
+    const weekend = moscowDaysFromKeys(["2026-11-14", "2026-11-15", "2026-11-21", "2026-11-22"]);
 
-    expect(weekend.map((day) => day.key)).toEqual([
-      "2026-11-14",
-      "2026-11-15",
-      "2026-11-21",
-      "2026-11-22",
-    ]);
+    expect(weekend.map((day) => day.isWeekend)).toEqual([true, true, true, true]);
   });
 
-  it("сдвигает окно в полночь по Москве", () => {
-    const beforeMidnight = getMoscowWindowDays(new Date("2026-11-12T20:59:00Z"));
-    const afterMidnight = getMoscowWindowDays(new Date("2026-11-12T21:00:00Z"));
+  it("не добавляет и не убирает даты: окно целиком приходит с сервера", () => {
+    const keys = Array.from({ length: 14 }, (_, index) =>
+      new Date(Date.UTC(2026, 10, 12 + index)).toISOString().slice(0, 10),
+    );
 
-    expect(beforeMidnight[0]?.key).toBe("2026-11-12");
-    expect(afterMidnight[0]?.key).toBe("2026-11-13");
-  });
-});
-
-describe("дни календаря с учётом ответа сервера", () => {
-  it("добавляет московскую дату слота, которой нет в клиентском окне", () => {
-    const days = getMoscowWindowDays(new Date("2026-11-12T09:15:00Z"));
-    const merged = withSlotDays(days, [
-      { start: "2026-11-26T06:00:00.000Z", end: "2026-11-26T06:30:00.000Z" },
-    ]);
-
-    expect(merged).toHaveLength(15);
-    expect(merged.at(-1)).toMatchObject({ key: "2026-11-26", weekday: "чт" });
-  });
-
-  it("не дублирует день, который уже входит в окно", () => {
-    const days = getMoscowWindowDays(new Date("2026-11-12T09:15:00Z"));
-    const merged = withSlotDays(days, [
-      { start: "2026-11-13T06:00:00.000Z", end: "2026-11-13T06:30:00.000Z" },
-    ]);
-
-    expect(merged).toHaveLength(14);
-    expect(merged.filter((day) => day.key === "2026-11-13")).toHaveLength(1);
+    expect(moscowDaysFromKeys(keys).map((day) => day.key)).toEqual(keys);
   });
 });
 
