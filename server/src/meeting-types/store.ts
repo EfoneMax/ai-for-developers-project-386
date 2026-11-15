@@ -16,6 +16,31 @@ interface NewMeetingType {
   durationMinutes: number;
 }
 
+/**
+ * Изменения типа встречи. `description: null` убирает описание, а
+ * отсутствующее поле оставляет его как есть.
+ */
+interface MeetingTypeChanges {
+  name?: string;
+  description?: string | null;
+  durationMinutes?: number;
+}
+
+/** Поле сортировки списка типов встреч из контракта. */
+export type MeetingTypeSortField = "createdAt" | "name" | "durationMinutes";
+
+/** Направление сортировки списка из контракта. */
+export type SortOrder = "asc" | "desc";
+
+/** Параметры страницы списка типов встреч. */
+export interface MeetingTypeListParams {
+  page: number;
+  limit: number;
+  sort: MeetingTypeSortField;
+  order: SortOrder;
+  search?: string;
+}
+
 /** Страница списка типов встреч. */
 interface MeetingTypePage {
   items: MeetingType[];
@@ -26,9 +51,11 @@ interface MeetingTypePage {
 
 /** Хранилище типов встреч в памяти процесса. */
 export interface MeetingTypesStore {
-  list(params: { page: number; limit: number }): MeetingTypePage;
+  list(params: MeetingTypeListParams): MeetingTypePage;
   get(id: string): MeetingType | undefined;
   create(input: NewMeetingType, createdAt: Date): MeetingType;
+  update(id: string, changes: MeetingTypeChanges): MeetingType | undefined;
+  remove(id: string): boolean;
 }
 
 /**
@@ -39,12 +66,19 @@ export function createMeetingTypesStore(): MeetingTypesStore {
   const meetingTypes: MeetingType[] = [];
 
   return {
-    list({ page, limit }) {
+    list({ page, limit, sort, order, search }) {
+      const matches =
+        search === undefined || search === ""
+          ? meetingTypes
+          : meetingTypes.filter((meetingType) => matchesSearch(meetingType, search));
+
+      const direction = order === "asc" ? 1 : -1;
+      const sorted = [...matches].sort((a, b) => direction * compareMeetingTypes(a, b, sort));
       const first = (page - 1) * limit;
 
       return {
-        items: meetingTypes.slice(first, first + limit),
-        total: meetingTypes.length,
+        items: sorted.slice(first, first + limit),
+        total: sorted.length,
         page,
         limit,
       };
@@ -66,5 +100,60 @@ export function createMeetingTypesStore(): MeetingTypesStore {
       meetingTypes.push(meetingType);
       return meetingType;
     },
+
+    update(id, changes) {
+      const meetingType = meetingTypes.find((candidate) => candidate.id === id);
+
+      if (meetingType === undefined) {
+        return undefined;
+      }
+
+      if (changes.name !== undefined) {
+        meetingType.name = changes.name;
+      }
+
+      if (changes.durationMinutes !== undefined) {
+        meetingType.durationMinutes = changes.durationMinutes;
+      }
+
+      if (changes.description === null) {
+        delete meetingType.description;
+      } else if (changes.description !== undefined) {
+        meetingType.description = changes.description;
+      }
+
+      return meetingType;
+    },
+
+    remove(id) {
+      const index = meetingTypes.findIndex((candidate) => candidate.id === id);
+
+      if (index === -1) {
+        return false;
+      }
+
+      meetingTypes.splice(index, 1);
+      return true;
+    },
   };
+}
+
+/** Подстрока без учёта регистра по названию и описанию. */
+function matchesSearch(meetingType: MeetingType, search: string): boolean {
+  const needle = search.toLowerCase();
+  const haystacks = [meetingType.name, meetingType.description ?? ""];
+
+  return haystacks.some((value) => value.toLowerCase().includes(needle));
+}
+
+/** Сравнение двух типов по выбранному полю; названия — по алфавиту. */
+function compareMeetingTypes(a: MeetingType, b: MeetingType, sort: MeetingTypeSortField): number {
+  switch (sort) {
+    case "name":
+      return a.name.localeCompare(b.name, "ru");
+    case "durationMinutes":
+      return a.durationMinutes - b.durationMinutes;
+    case "createdAt":
+      return a.createdAt.localeCompare(b.createdAt);
+  }
 }

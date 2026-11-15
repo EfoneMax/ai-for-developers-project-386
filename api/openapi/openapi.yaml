@@ -126,6 +126,9 @@ paths:
       parameters:
         - $ref: '#/components/parameters/MeetingTypeListQuery.page'
         - $ref: '#/components/parameters/MeetingTypeListQuery.limit'
+        - $ref: '#/components/parameters/MeetingTypeListQuery.sort'
+        - $ref: '#/components/parameters/MeetingTypeListQuery.order'
+        - $ref: '#/components/parameters/MeetingTypeListQuery.search'
       responses:
         '200':
           description: Ответ со страницей типов встреч.
@@ -202,6 +205,104 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/MeetingTypeCreate'
+  /api/meeting-types/{id}:
+    patch:
+      operationId: updateMeetingType
+      description: |-
+        Частичное изменение типа встречи.
+
+        Меняет непустое подмножество `name`, `description` и `durationMinutes`
+        с теми же правилами, что при создании; `id` и `createdAt` неизменяемы.
+        Неизвестный тип — 404 `MEETING_TYPE_NOT_FOUND`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор типа встречи.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ответ на изменение типа встречи.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeetingType'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Meeting Types
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeetingTypeUpdate'
+    delete:
+      operationId: deleteMeetingType
+      description: |-
+        Удаление типа встречи.
+
+        Разрешено всегда, в том числе при предстоящих бронях: существующие брони
+        сохраняют снимок и продолжают занимать своё время. Неизвестный тип — 404.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор типа встречи.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'Ответ на удаление типа встречи: тела нет.'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Meeting Types
   /api/meeting-types/{id}/slots:
     get:
       operationId: listMeetingTypeSlots
@@ -265,6 +366,16 @@ components:
         maximum: 100
         default: 20
       explode: false
+    MeetingTypeListQuery.order:
+      name: order
+      in: query
+      required: false
+      description: Направление сортировки. По умолчанию `asc`.
+      schema:
+        allOf:
+          - $ref: '#/components/schemas/SortOrder'
+        default: asc
+      explode: false
     MeetingTypeListQuery.page:
       name: page
       in: query
@@ -275,6 +386,24 @@ components:
         format: int32
         minimum: 1
         default: 1
+      explode: false
+    MeetingTypeListQuery.search:
+      name: search
+      in: query
+      required: false
+      description: Подстрока без учёта регистра по названию и описанию.
+      schema:
+        type: string
+      explode: false
+    MeetingTypeListQuery.sort:
+      name: sort
+      in: query
+      required: false
+      description: Поле сортировки. По умолчанию `createdAt`.
+      schema:
+        allOf:
+          - $ref: '#/components/schemas/MeetingTypeSort'
+        default: createdAt
       explode: false
   schemas:
     Booking:
@@ -524,11 +653,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MeetingType'
-          description: Типы встреч на текущей странице, от старых к новым.
+          description: Типы встреч на текущей странице.
         total:
           type: integer
           format: int32
-          description: Общее количество типов встреч.
+          description: Общее количество типов встреч с учётом поиска.
         page:
           type: integer
           format: int32
@@ -538,6 +667,36 @@ components:
           format: int32
           description: Размер страницы, от 1 до 100.
       description: Страница списка типов встреч.
+    MeetingTypeSort:
+      type: string
+      enum:
+        - createdAt
+        - name
+        - durationMinutes
+      description: Поле сортировки списка типов встреч.
+    MeetingTypeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Название, от 1 до 100 символов после удаления пробелов по краям.
+        description:
+          type: string
+          maxLength: 1000
+          description: Описание, до 1000 символов; пустая строка убирает описание.
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 5
+          maximum: 240
+          description: Длительность встречи в минутах, от 5 до 240.
+      description: |-
+        Поля частичного изменения типа встречи.
+
+        Передайте непустое подмножество полей; `id` и `createdAt` неизменяемы.
+        Пустая строка в `description` убирает описание.
     Slot:
       type: object
       required:
@@ -568,6 +727,12 @@ components:
             $ref: '#/components/schemas/Slot'
           description: Свободные слоты, отсортированные по началу.
       description: Свободные слоты типа встречи за всё окно записи.
+    SortOrder:
+      type: string
+      enum:
+        - asc
+        - desc
+      description: Направление сортировки списка.
 servers:
   - url: http://localhost:3000
     description: Локальный сервер
