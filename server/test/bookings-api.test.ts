@@ -254,6 +254,29 @@ describe("POST /api/bookings", () => {
     expect(insideEnd.json()).toMatchObject({ error: { code: "SLOT_TAKEN" } });
   });
 
+  it("запрещает частичное наложение получаса поверх часовой встречи", async () => {
+    const app = buildApp();
+    const hour = await createMeetingType(app, { name: "Час", durationMinutes: 60 });
+    const half = await createMeetingType(app, { name: "Полчаса", durationMinutes: 30 });
+
+    // 10:00–11:00 и 10:30–11:00 по Москве.
+    await book(app, { meetingTypeId: hour.id, start: "2026-11-13T07:00:00.000Z" });
+    const response = await book(app, {
+      meetingTypeId: half.id,
+      start: "2026-11-13T07:30:00.000Z",
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ error: { code: "SLOT_TAKEN" } });
+
+    const slots = await app.inject({
+      method: "GET",
+      url: `/api/meeting-types/${half.id}/slots`,
+    });
+    const starts = (slots.json() as { slots: { start: string }[] }).slots.map((slot) => slot.start);
+    expect(starts).not.toContain("2026-11-13T07:30:00.000Z");
+  });
+
   it("запрещает бронь, которая полностью накрывает занятый интервал", async () => {
     const app = buildApp();
     const short = await createMeetingType(app, { name: "Короткий", durationMinutes: 30 });
@@ -329,6 +352,23 @@ describe("POST /api/bookings", () => {
 });
 
 describe("GET /api/bookings", () => {
+  it("показывает в предстоящих встречах брони разных типов", async () => {
+    const app = buildApp();
+    const first = await createMeetingType(app, { name: "Первый", durationMinutes: 30 });
+    const second = await createMeetingType(app, { name: "Второй", durationMinutes: 60 });
+
+    await book(app, { meetingTypeId: first.id, start: "2026-11-13T06:00:00.000Z" });
+    await book(app, { meetingTypeId: second.id, start: "2026-11-13T08:00:00.000Z" });
+
+    const body = (await listBookings(app)).json() as {
+      items: { meetingType: { name: string; durationMinutes: number } }[];
+    };
+
+    expect(body.items).toHaveLength(2);
+    expect(body.items.map((item) => item.meetingType.name)).toEqual(["Первый", "Второй"]);
+    expect(body.items.map((item) => item.meetingType.durationMinutes)).toEqual([30, 60]);
+  });
+
   it("начинает с пустого списка предстоящих", async () => {
     const app = buildApp();
 
