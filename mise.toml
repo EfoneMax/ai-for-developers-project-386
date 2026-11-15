@@ -42,7 +42,7 @@ description = "Собрать OpenAPI из TypeSpec и сгенерироват�
 run = "npm run generate"
 
 [tasks.check]
-description = "Линтер, типы, дымовой тест и сборка"
+description = "Быстрые проверки: генерация, линтеры, типы, тесты, сборка"
 run = "npm run check"
 
 [tasks."check:all"]

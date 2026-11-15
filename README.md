@@ -62,7 +62,7 @@
 ```bash
 mise run setup      # зависимости, OpenAPI и SDK, Git-хуки
 mise run dev        # API и фронтенд как daemons
-mise run check      # линтеры, типы, тесты и сборка — быстрый job CI
+mise run check      # линтеры, типы, тесты и сборка
 mise run check:e2e  # сборка и браузерные сценарии Playwright
 mise run check:all  # все проверки: быстрые и браузерные, как в CI
 ```
