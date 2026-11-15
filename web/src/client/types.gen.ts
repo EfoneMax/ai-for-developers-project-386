@@ -5,6 +5,148 @@ export type ClientOptions = {
 };
 
 /**
+ * Бронь — подтверждённое гостем право занять слот вместе с контактами.
+ *
+ * Хранит снимок типа встречи, поэтому правка или удаление типа не меняет
+ * уже созданную бронь.
+ */
+export type Booking = {
+    /**
+     * Идентификатор, назначает сервер; в интерфейсе не показывается.
+     */
+    id: string;
+    /**
+     * Статус брони.
+     */
+    status: BookingStatus;
+    /**
+     * Снимок типа встречи на момент записи.
+     */
+    meetingType: BookingMeetingType;
+    /**
+     * Начало встречи в UTC, ISO 8601.
+     */
+    start: string;
+    /**
+     * Конец встречи в UTC; равен началу плюс длительность из снимка.
+     */
+    end: string;
+    /**
+     * Контактные данные гостя.
+     */
+    guest: Guest;
+};
+
+/**
+ * Поля создания брони.
+ */
+export type BookingCreate = {
+    /**
+     * Идентификатор типа встречи из каталога.
+     */
+    meetingTypeId: string;
+    /**
+     * Желаемое начало встречи в UTC, ISO 8601.
+     */
+    start: string;
+    /**
+     * Контактные данные гостя.
+     */
+    guest: Guest;
+};
+
+/**
+ * Предстоящие брони владельца.
+ */
+export type BookingList = {
+    /**
+     * Предстоящие брони, отсортированные по началу.
+     */
+    items: Array<Booking>;
+};
+
+/**
+ * Снимок типа встречи на момент создания брони (ADR-0006).
+ */
+export type BookingMeetingType = {
+    /**
+     * Идентификатор исходного типа; тип может быть уже удалён.
+     */
+    id: string;
+    /**
+     * Название типа на момент записи.
+     */
+    name: string;
+    /**
+     * Длительность встречи в минутах на момент записи.
+     */
+    durationMinutes: number;
+};
+
+/**
+ * Статус брони: подтверждённая занимает слот, отменённая — нет.
+ */
+export type BookingStatus = 'confirmed' | 'cancelled';
+
+/**
+ * Тело ошибки API.
+ */
+export type ErrorBody = {
+    /**
+     * Стабильный код ошибки.
+     */
+    code: ErrorCode;
+    /**
+     * Русский текст ошибки; можно показать как есть.
+     */
+    message: string;
+    /**
+     * Ошибки полей, если это ошибка валидации.
+     */
+    details?: Array<ErrorDetail>;
+};
+
+/**
+ * Стабильный код ошибки API; интерфейс принимает решения по нему.
+ */
+export type ErrorCode = 'VALIDATION_ERROR' | 'MEETING_TYPE_NOT_FOUND' | 'SLOT_TAKEN' | 'BOOKING_NOT_FOUND' | 'BOOKING_NOT_CANCELLABLE' | 'NOT_FOUND' | 'INTERNAL_ERROR';
+
+/**
+ * Ошибка конкретного поля запроса.
+ */
+export type ErrorDetail = {
+    /**
+     * Имя поля, как в теле или параметрах запроса.
+     */
+    field: string;
+    /**
+     * Русский текст ошибки для показа рядом с полем.
+     */
+    message: string;
+};
+
+/**
+ * Контактные данные гостя в брони.
+ *
+ * Гость не учётная запись: у него нет id, подтверждения email и списка
+ * своих броней.
+ */
+export type Guest = {
+    /**
+     * Имя, от 1 до 100 символов после удаления пробелов по краям.
+     */
+    name: string;
+    /**
+     * Email до 254 символов с базовой проверкой формата.
+     */
+    email: string;
+    /**
+     * Комментарий до 1000 символов. Пустой комментарий не возвращается.
+     */
+    comment?: string;
+};
+
+/**
  * Тело ответа проверки живости.
  */
 export type HealthBody = {
@@ -13,6 +155,274 @@ export type HealthBody = {
      */
     status: 'ok';
 };
+
+/**
+ * Тип встречи — настройка, по которой гость бронирует слот.
+ *
+ * Созданный тип сразу виден на странице записи. Названия не уникальны:
+ * типы различаются по `id`.
+ */
+export type MeetingType = {
+    /**
+     * Идентификатор, назначает сервер.
+     */
+    id: string;
+    /**
+     * Название, от 1 до 100 символов после удаления пробелов по краям.
+     */
+    name: string;
+    /**
+     * Описание, до 1000 символов. Пустое описание не возвращается.
+     */
+    description?: string;
+    /**
+     * Длительность встречи в минутах, от 5 до 240.
+     */
+    durationMinutes: number;
+    /**
+     * Момент создания в UTC, ISO 8601.
+     */
+    createdAt: string;
+};
+
+/**
+ * Поля создания типа встречи.
+ */
+export type MeetingTypeCreate = {
+    /**
+     * Название, от 1 до 100 символов после удаления пробелов по краям.
+     */
+    name: string;
+    /**
+     * Описание, до 1000 символов; пустая строка допустима.
+     */
+    description?: string;
+    /**
+     * Длительность встречи в минутах, от 5 до 240.
+     */
+    durationMinutes: number;
+};
+
+/**
+ * Страница списка типов встреч.
+ */
+export type MeetingTypeList = {
+    /**
+     * Типы встреч на текущей странице.
+     */
+    items: Array<MeetingType>;
+    /**
+     * Общее количество типов встреч с учётом поиска.
+     */
+    total: number;
+    /**
+     * Номер текущей страницы, начиная с 1.
+     */
+    page: number;
+    /**
+     * Размер страницы, от 1 до 100.
+     */
+    limit: number;
+};
+
+/**
+ * Поле сортировки списка типов встреч.
+ */
+export type MeetingTypeSort = 'createdAt' | 'name' | 'durationMinutes';
+
+/**
+ * Поля частичного изменения типа встречи.
+ *
+ * Передайте непустое подмножество полей; `id` и `createdAt` неизменяемы.
+ * Пустая строка в `description` убирает описание.
+ */
+export type MeetingTypeUpdate = {
+    /**
+     * Название, от 1 до 100 символов после удаления пробелов по краям.
+     */
+    name?: string;
+    /**
+     * Описание, до 1000 символов; пустая строка убирает описание.
+     */
+    description?: string;
+    /**
+     * Длительность встречи в минутах, от 5 до 240.
+     */
+    durationMinutes?: number;
+};
+
+/**
+ * Слот — интервал времени, который гость может забронировать.
+ *
+ * Начало и конец — абсолютные моменты UTC. Конец равен началу плюс
+ * длительность типа встречи.
+ */
+export type Slot = {
+    /**
+     * Начало слота в UTC, ISO 8601.
+     */
+    start: string;
+    /**
+     * Конец слота в UTC, ISO 8601.
+     */
+    end: string;
+};
+
+/**
+ * Свободные слоты типа встречи за всё окно записи.
+ */
+export type SlotList = {
+    /**
+     * Свободные слоты, отсортированные по началу.
+     */
+    slots: Array<Slot>;
+};
+
+/**
+ * Направление сортировки списка.
+ */
+export type SortOrder = 'asc' | 'desc';
+
+/**
+ * Размер страницы, от 1 до 100. По умолчанию 20.
+ */
+export type MeetingTypeListQueryLimit = number;
+
+/**
+ * Направление сортировки. По умолчанию `asc`.
+ */
+export type MeetingTypeListQueryOrder = SortOrder;
+
+/**
+ * Номер страницы, начиная с 1. По умолчанию 1.
+ */
+export type MeetingTypeListQueryPage = number;
+
+/**
+ * Подстрока без учёта регистра по названию и описанию.
+ */
+export type MeetingTypeListQuerySearch = string;
+
+/**
+ * Поле сортировки. По умолчанию `createdAt`.
+ */
+export type MeetingTypeListQuerySort = MeetingTypeSort;
+
+export type ListBookingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/bookings';
+};
+
+export type ListBookingsErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type ListBookingsError = ListBookingsErrors[keyof ListBookingsErrors];
+
+export type ListBookingsResponses = {
+    /**
+     * Ответ со списком предстоящих броней.
+     */
+    200: BookingList;
+};
+
+export type ListBookingsResponse = ListBookingsResponses[keyof ListBookingsResponses];
+
+export type CreateBookingData = {
+    body: BookingCreate;
+    path?: never;
+    query?: never;
+    url: '/api/bookings';
+};
+
+export type CreateBookingErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type CreateBookingError = CreateBookingErrors[keyof CreateBookingErrors];
+
+export type CreateBookingResponses = {
+    /**
+     * Ответ на создание брони.
+     */
+    201: Booking;
+};
+
+export type CreateBookingResponse = CreateBookingResponses[keyof CreateBookingResponses];
+
+export type CancelBookingData = {
+    body?: never;
+    path: {
+        /**
+         * Идентификатор брони.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/bookings/{id}/cancel';
+};
+
+export type CancelBookingErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type CancelBookingError = CancelBookingErrors[keyof CancelBookingErrors];
+
+export type CancelBookingResponses = {
+    /**
+     * Ответ на отмену брони: та же бронь в статусе `cancelled`.
+     */
+    200: Booking;
+};
+
+export type CancelBookingResponse = CancelBookingResponses[keyof CancelBookingResponses];
 
 export type GetHealthData = {
     body?: never;
@@ -29,3 +439,224 @@ export type GetHealthResponses = {
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
+
+export type ListMeetingTypesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Номер страницы, начиная с 1. По умолчанию 1.
+         */
+        page?: number;
+        /**
+         * Размер страницы, от 1 до 100. По умолчанию 20.
+         */
+        limit?: number;
+        /**
+         * Поле сортировки. По умолчанию `createdAt`.
+         */
+        sort?: MeetingTypeSort;
+        /**
+         * Направление сортировки. По умолчанию `asc`.
+         */
+        order?: SortOrder;
+        /**
+         * Подстрока без учёта регистра по названию и описанию.
+         */
+        search?: string;
+    };
+    url: '/api/meeting-types';
+};
+
+export type ListMeetingTypesErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type ListMeetingTypesError = ListMeetingTypesErrors[keyof ListMeetingTypesErrors];
+
+export type ListMeetingTypesResponses = {
+    /**
+     * Ответ со страницей типов встреч.
+     */
+    200: MeetingTypeList;
+};
+
+export type ListMeetingTypesResponse = ListMeetingTypesResponses[keyof ListMeetingTypesResponses];
+
+export type CreateMeetingTypeData = {
+    body: MeetingTypeCreate;
+    path?: never;
+    query?: never;
+    url: '/api/meeting-types';
+};
+
+export type CreateMeetingTypeErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type CreateMeetingTypeError = CreateMeetingTypeErrors[keyof CreateMeetingTypeErrors];
+
+export type CreateMeetingTypeResponses = {
+    /**
+     * Ответ на создание типа встречи.
+     */
+    201: MeetingType;
+};
+
+export type CreateMeetingTypeResponse = CreateMeetingTypeResponses[keyof CreateMeetingTypeResponses];
+
+export type DeleteMeetingTypeData = {
+    body?: never;
+    path: {
+        /**
+         * Идентификатор типа встречи.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/meeting-types/{id}';
+};
+
+export type DeleteMeetingTypeErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type DeleteMeetingTypeError = DeleteMeetingTypeErrors[keyof DeleteMeetingTypeErrors];
+
+export type DeleteMeetingTypeResponses = {
+    /**
+     * Ответ на удаление типа встречи: тела нет.
+     */
+    204: void;
+};
+
+export type DeleteMeetingTypeResponse = DeleteMeetingTypeResponses[keyof DeleteMeetingTypeResponses];
+
+export type UpdateMeetingTypeData = {
+    body: MeetingTypeUpdate;
+    path: {
+        /**
+         * Идентификатор типа встречи.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/meeting-types/{id}';
+};
+
+export type UpdateMeetingTypeErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type UpdateMeetingTypeError = UpdateMeetingTypeErrors[keyof UpdateMeetingTypeErrors];
+
+export type UpdateMeetingTypeResponses = {
+    /**
+     * Ответ на изменение типа встречи.
+     */
+    200: MeetingType;
+};
+
+export type UpdateMeetingTypeResponse = UpdateMeetingTypeResponses[keyof UpdateMeetingTypeResponses];
+
+export type ListMeetingTypeSlotsData = {
+    body?: never;
+    path: {
+        /**
+         * Идентификатор типа встречи.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/meeting-types/{id}/slots';
+};
+
+export type ListMeetingTypeSlotsErrors = {
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    400: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    404: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    409: ErrorBody;
+    /**
+     * Конверт ошибки API (ADR-0005).
+     */
+    500: ErrorBody;
+};
+
+export type ListMeetingTypeSlotsError = ListMeetingTypeSlotsErrors[keyof ListMeetingTypeSlotsErrors];
+
+export type ListMeetingTypeSlotsResponses = {
+    /**
+     * Ответ со свободными слотами типа встречи.
+     */
+    200: SlotList;
+};
+
+export type ListMeetingTypeSlotsResponse = ListMeetingTypeSlotsResponses[keyof ListMeetingTypeSlotsResponses];

@@ -9,7 +9,151 @@ info:
     эти маршруты, а TypeScript SDK для фронтенда генерируется из OpenAPI.
 tags:
   - name: Health
+  - name: Meeting Types
+  - name: Bookings
 paths:
+  /api/bookings:
+    post:
+      operationId: createBooking
+      description: |-
+        Создание брони.
+
+        Сервер заново проверяет сетку, рабочий день, окно записи, `start > now`
+        и `end ≤ 18:00`, не доверяя ответу доступности. Проверка занятости и
+        вставка брони идут синхронно, поэтому из двух одновременных запросов
+        на один слот успешно проходит ровно один.
+      parameters: []
+      responses:
+        '201':
+          description: Ответ на создание брони.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Bookings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreate'
+    get:
+      operationId: listBookings
+      description: |-
+        Предстоящие брони владельца.
+
+        Только подтверждённые брони, которые ещё не закончились, по возрастанию
+        начала. Отменённые и прошедшие брони в список не попадают.
+      parameters: []
+      responses:
+        '200':
+          description: Ответ со списком предстоящих броней.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingList'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Bookings
+  /api/bookings/{id}/cancel:
+    post:
+      operationId: cancelBooking
+      description: |-
+        Отмена брони владельцем.
+
+        Единственный переход `confirmed → cancelled`: запись сохраняется, снимок
+        типа и время не пересчитываются, отменённая бронь освобождает слот.
+        Отменить можно, пока `end > now`; уже отменённая или прошедшая бронь
+        отвечает 409 `BOOKING_NOT_CANCELLABLE`, неизвестный `id` — 404
+        `BOOKING_NOT_FOUND`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор брони.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'Ответ на отмену брони: та же бронь в статусе `cancelled`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Bookings
   /api/health:
     get:
       operationId: getHealth
@@ -26,8 +170,459 @@ paths:
                 status: ok
       tags:
         - Health
+  /api/meeting-types:
+    get:
+      operationId: listMeetingTypes
+      description: Список типов встреч с пагинацией.
+      parameters:
+        - $ref: '#/components/parameters/MeetingTypeListQuery.page'
+        - $ref: '#/components/parameters/MeetingTypeListQuery.limit'
+        - $ref: '#/components/parameters/MeetingTypeListQuery.sort'
+        - $ref: '#/components/parameters/MeetingTypeListQuery.order'
+        - $ref: '#/components/parameters/MeetingTypeListQuery.search'
+      responses:
+        '200':
+          description: Ответ со страницей типов встреч.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeetingTypeList'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Meeting Types
+    post:
+      operationId: createMeetingType
+      description: Создание типа встречи; созданный тип сразу виден гостю.
+      parameters: []
+      responses:
+        '201':
+          description: Ответ на создание типа встречи.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeetingType'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Meeting Types
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeetingTypeCreate'
+  /api/meeting-types/{id}:
+    patch:
+      operationId: updateMeetingType
+      description: |-
+        Частичное изменение типа встречи.
+
+        Меняет непустое подмножество `name`, `description` и `durationMinutes`
+        с теми же правилами, что при создании; `id` и `createdAt` неизменяемы.
+        Неизвестный тип — 404 `MEETING_TYPE_NOT_FOUND`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор типа встречи.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ответ на изменение типа встречи.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeetingType'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Meeting Types
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeetingTypeUpdate'
+    delete:
+      operationId: deleteMeetingType
+      description: |-
+        Удаление типа встречи.
+
+        Разрешено всегда, в том числе при предстоящих бронях: существующие брони
+        сохраняют снимок и продолжают занимать своё время. Неизвестный тип — 404.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор типа встречи.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'Ответ на удаление типа встречи: тела нет.'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Meeting Types
+  /api/meeting-types/{id}/slots:
+    get:
+      operationId: listMeetingTypeSlots
+      description: |-
+        Свободные слоты типа встречи за всё окно записи.
+
+        Окно — 14 московских дат, старты по будням с 09:00 до 18:00. Маршрут
+        не принимает дату, диапазон или часовой пояс: клиент показывает время
+        в поясе гостя сам.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор типа встречи.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ответ со свободными слотами типа встречи.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotList'
+        '400':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: Конверт ошибки API (ADR-0005).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      tags:
+        - Meeting Types
 components:
+  parameters:
+    MeetingTypeListQuery.limit:
+      name: limit
+      in: query
+      required: false
+      description: Размер страницы, от 1 до 100. По умолчанию 20.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 20
+      explode: false
+    MeetingTypeListQuery.order:
+      name: order
+      in: query
+      required: false
+      description: Направление сортировки. По умолчанию `asc`.
+      schema:
+        allOf:
+          - $ref: '#/components/schemas/SortOrder'
+        default: asc
+      explode: false
+    MeetingTypeListQuery.page:
+      name: page
+      in: query
+      required: false
+      description: Номер страницы, начиная с 1. По умолчанию 1.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        default: 1
+      explode: false
+    MeetingTypeListQuery.search:
+      name: search
+      in: query
+      required: false
+      description: Подстрока без учёта регистра по названию и описанию.
+      schema:
+        type: string
+      explode: false
+    MeetingTypeListQuery.sort:
+      name: sort
+      in: query
+      required: false
+      description: Поле сортировки. По умолчанию `createdAt`.
+      schema:
+        allOf:
+          - $ref: '#/components/schemas/MeetingTypeSort'
+        default: createdAt
+      explode: false
   schemas:
+    Booking:
+      type: object
+      required:
+        - id
+        - status
+        - meetingType
+        - start
+        - end
+        - guest
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Идентификатор, назначает сервер; в интерфейсе не показывается.
+        status:
+          allOf:
+            - $ref: '#/components/schemas/BookingStatus'
+          description: Статус брони.
+        meetingType:
+          allOf:
+            - $ref: '#/components/schemas/BookingMeetingType'
+          description: Снимок типа встречи на момент записи.
+        start:
+          type: string
+          format: date-time
+          description: Начало встречи в UTC, ISO 8601.
+        end:
+          type: string
+          format: date-time
+          description: Конец встречи в UTC; равен началу плюс длительность из снимка.
+        guest:
+          allOf:
+            - $ref: '#/components/schemas/Guest'
+          description: Контактные данные гостя.
+      description: |-
+        Бронь — подтверждённое гостем право занять слот вместе с контактами.
+
+        Хранит снимок типа встречи, поэтому правка или удаление типа не меняет
+        уже созданную бронь.
+    BookingCreate:
+      type: object
+      required:
+        - meetingTypeId
+        - start
+        - guest
+      properties:
+        meetingTypeId:
+          type: string
+          description: Идентификатор типа встречи из каталога.
+        start:
+          type: string
+          format: date-time
+          description: Желаемое начало встречи в UTC, ISO 8601.
+        guest:
+          allOf:
+            - $ref: '#/components/schemas/Guest'
+          description: Контактные данные гостя.
+      description: Поля создания брони.
+    BookingList:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Booking'
+          description: Предстоящие брони, отсортированные по началу.
+      description: Предстоящие брони владельца.
+    BookingMeetingType:
+      type: object
+      required:
+        - id
+        - name
+        - durationMinutes
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Идентификатор исходного типа; тип может быть уже удалён.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Название типа на момент записи.
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 5
+          maximum: 240
+          description: Длительность встречи в минутах на момент записи.
+      description: Снимок типа встречи на момент создания брони (ADR-0006).
+    BookingStatus:
+      type: string
+      enum:
+        - confirmed
+        - cancelled
+      description: 'Статус брони: подтверждённая занимает слот, отменённая — нет.'
+    ErrorBody:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          allOf:
+            - $ref: '#/components/schemas/ErrorCode'
+          description: Стабильный код ошибки.
+        message:
+          type: string
+          description: Русский текст ошибки; можно показать как есть.
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+          description: Ошибки полей, если это ошибка валидации.
+      description: Тело ошибки API.
+    ErrorCode:
+      type: string
+      enum:
+        - VALIDATION_ERROR
+        - MEETING_TYPE_NOT_FOUND
+        - SLOT_TAKEN
+        - BOOKING_NOT_FOUND
+        - BOOKING_NOT_CANCELLABLE
+        - NOT_FOUND
+        - INTERNAL_ERROR
+      description: Стабильный код ошибки API; интерфейс принимает решения по нему.
+    ErrorDetail:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          description: Имя поля, как в теле или параметрах запроса.
+        message:
+          type: string
+          description: Русский текст ошибки для показа рядом с полем.
+      description: Ошибка конкретного поля запроса.
+    Guest:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Имя, от 1 до 100 символов после удаления пробелов по краям.
+        email:
+          type: string
+          maxLength: 254
+          format: email
+          description: Email до 254 символов с базовой проверкой формата.
+        comment:
+          type: string
+          maxLength: 1000
+          description: Комментарий до 1000 символов. Пустой комментарий не возвращается.
+      description: |-
+        Контактные данные гостя в брони.
+
+        Гость не учётная запись: у него нет id, подтверждения email и списка
+        своих броней.
     HealthBody:
       type: object
       required:
@@ -41,6 +636,156 @@ components:
       description: Тело ответа проверки живости.
       example:
         status: ok
+    MeetingType:
+      type: object
+      required:
+        - id
+        - name
+        - durationMinutes
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Идентификатор, назначает сервер.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Название, от 1 до 100 символов после удаления пробелов по краям.
+        description:
+          type: string
+          maxLength: 1000
+          description: Описание, до 1000 символов. Пустое описание не возвращается.
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 5
+          maximum: 240
+          description: Длительность встречи в минутах, от 5 до 240.
+        createdAt:
+          type: string
+          format: date-time
+          description: Момент создания в UTC, ISO 8601.
+      description: |-
+        Тип встречи — настройка, по которой гость бронирует слот.
+
+        Созданный тип сразу виден на странице записи. Названия не уникальны:
+        типы различаются по `id`.
+    MeetingTypeCreate:
+      type: object
+      required:
+        - name
+        - durationMinutes
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Название, от 1 до 100 символов после удаления пробелов по краям.
+        description:
+          type: string
+          maxLength: 1000
+          description: Описание, до 1000 символов; пустая строка допустима.
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 5
+          maximum: 240
+          description: Длительность встречи в минутах, от 5 до 240.
+      description: Поля создания типа встречи.
+    MeetingTypeList:
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - limit
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MeetingType'
+          description: Типы встреч на текущей странице.
+        total:
+          type: integer
+          format: int32
+          description: Общее количество типов встреч с учётом поиска.
+        page:
+          type: integer
+          format: int32
+          description: Номер текущей страницы, начиная с 1.
+        limit:
+          type: integer
+          format: int32
+          description: Размер страницы, от 1 до 100.
+      description: Страница списка типов встреч.
+    MeetingTypeSort:
+      type: string
+      enum:
+        - createdAt
+        - name
+        - durationMinutes
+      description: Поле сортировки списка типов встреч.
+    MeetingTypeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Название, от 1 до 100 символов после удаления пробелов по краям.
+        description:
+          type: string
+          maxLength: 1000
+          description: Описание, до 1000 символов; пустая строка убирает описание.
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 5
+          maximum: 240
+          description: Длительность встречи в минутах, от 5 до 240.
+      description: |-
+        Поля частичного изменения типа встречи.
+
+        Передайте непустое подмножество полей; `id` и `createdAt` неизменяемы.
+        Пустая строка в `description` убирает описание.
+    Slot:
+      type: object
+      required:
+        - start
+        - end
+      properties:
+        start:
+          type: string
+          format: date-time
+          description: Начало слота в UTC, ISO 8601.
+        end:
+          type: string
+          format: date-time
+          description: Конец слота в UTC, ISO 8601.
+      description: |-
+        Слот — интервал времени, который гость может забронировать.
+
+        Начало и конец — абсолютные моменты UTC. Конец равен началу плюс
+        длительность типа встречи.
+    SlotList:
+      type: object
+      required:
+        - slots
+      properties:
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slot'
+          description: Свободные слоты, отсортированные по началу.
+      description: Свободные слоты типа встречи за всё окно записи.
+    SortOrder:
+      type: string
+      enum:
+        - asc
+        - desc
+      description: Направление сортировки списка.
 servers:
   - url: http://localhost:3000
     description: Локальный сервер

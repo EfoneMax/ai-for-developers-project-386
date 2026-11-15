@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetHealthData, GetHealthResponses } from './types.gen';
+import type { CancelBookingData, CancelBookingErrors, CancelBookingResponses, CreateBookingData, CreateBookingErrors, CreateBookingResponses, CreateMeetingTypeData, CreateMeetingTypeErrors, CreateMeetingTypeResponses, DeleteMeetingTypeData, DeleteMeetingTypeErrors, DeleteMeetingTypeResponses, GetHealthData, GetHealthResponses, ListBookingsData, ListBookingsErrors, ListBookingsResponses, ListMeetingTypesData, ListMeetingTypesErrors, ListMeetingTypeSlotsData, ListMeetingTypeSlotsErrors, ListMeetingTypeSlotsResponses, ListMeetingTypesResponses, UpdateMeetingTypeData, UpdateMeetingTypeErrors, UpdateMeetingTypeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -19,6 +19,92 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
+ * Предстоящие брони владельца.
+ *
+ * Только подтверждённые брони, которые ещё не закончились, по возрастанию
+ * начала. Отменённые и прошедшие брони в список не попадают.
+ */
+export const listBookings = <ThrowOnError extends boolean = false>(options?: Options<ListBookingsData, ThrowOnError>): RequestResult<ListBookingsResponses, ListBookingsErrors, ThrowOnError> => (options?.client ?? client).get<ListBookingsResponses, ListBookingsErrors, ThrowOnError>({ url: '/api/bookings', ...options });
+
+/**
+ * Создание брони.
+ *
+ * Сервер заново проверяет сетку, рабочий день, окно записи, `start > now`
+ * и `end ≤ 18:00`, не доверяя ответу доступности. Проверка занятости и
+ * вставка брони идут синхронно, поэтому из двух одновременных запросов
+ * на один слот успешно проходит ровно один.
+ */
+export const createBooking = <ThrowOnError extends boolean = false>(options: Options<CreateBookingData, ThrowOnError>): RequestResult<CreateBookingResponses, CreateBookingErrors, ThrowOnError> => (options.client ?? client).post<CreateBookingResponses, CreateBookingErrors, ThrowOnError>({
+    url: '/api/bookings',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Отмена брони владельцем.
+ *
+ * Единственный переход `confirmed → cancelled`: запись сохраняется, снимок
+ * типа и время не пересчитываются, отменённая бронь освобождает слот.
+ * Отменить можно, пока `end > now`; уже отменённая или прошедшая бронь
+ * отвечает 409 `BOOKING_NOT_CANCELLABLE`, неизвестный `id` — 404
+ * `BOOKING_NOT_FOUND`.
+ */
+export const cancelBooking = <ThrowOnError extends boolean = false>(options: Options<CancelBookingData, ThrowOnError>): RequestResult<CancelBookingResponses, CancelBookingErrors, ThrowOnError> => (options.client ?? client).post<CancelBookingResponses, CancelBookingErrors, ThrowOnError>({ url: '/api/bookings/{id}/cancel', ...options });
+
+/**
  * Проверка живости сервиса.
  */
 export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>): RequestResult<GetHealthResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetHealthResponses, unknown, ThrowOnError>({ url: '/api/health', ...options });
+
+/**
+ * Список типов встреч с пагинацией.
+ */
+export const listMeetingTypes = <ThrowOnError extends boolean = false>(options?: Options<ListMeetingTypesData, ThrowOnError>): RequestResult<ListMeetingTypesResponses, ListMeetingTypesErrors, ThrowOnError> => (options?.client ?? client).get<ListMeetingTypesResponses, ListMeetingTypesErrors, ThrowOnError>({ url: '/api/meeting-types', ...options });
+
+/**
+ * Создание типа встречи; созданный тип сразу виден гостю.
+ */
+export const createMeetingType = <ThrowOnError extends boolean = false>(options: Options<CreateMeetingTypeData, ThrowOnError>): RequestResult<CreateMeetingTypeResponses, CreateMeetingTypeErrors, ThrowOnError> => (options.client ?? client).post<CreateMeetingTypeResponses, CreateMeetingTypeErrors, ThrowOnError>({
+    url: '/api/meeting-types',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Удаление типа встречи.
+ *
+ * Разрешено всегда, в том числе при предстоящих бронях: существующие брони
+ * сохраняют снимок и продолжают занимать своё время. Неизвестный тип — 404.
+ */
+export const deleteMeetingType = <ThrowOnError extends boolean = false>(options: Options<DeleteMeetingTypeData, ThrowOnError>): RequestResult<DeleteMeetingTypeResponses, DeleteMeetingTypeErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMeetingTypeResponses, DeleteMeetingTypeErrors, ThrowOnError>({ url: '/api/meeting-types/{id}', ...options });
+
+/**
+ * Частичное изменение типа встречи.
+ *
+ * Меняет непустое подмножество `name`, `description` и `durationMinutes`
+ * с теми же правилами, что при создании; `id` и `createdAt` неизменяемы.
+ * Неизвестный тип — 404 `MEETING_TYPE_NOT_FOUND`.
+ */
+export const updateMeetingType = <ThrowOnError extends boolean = false>(options: Options<UpdateMeetingTypeData, ThrowOnError>): RequestResult<UpdateMeetingTypeResponses, UpdateMeetingTypeErrors, ThrowOnError> => (options.client ?? client).patch<UpdateMeetingTypeResponses, UpdateMeetingTypeErrors, ThrowOnError>({
+    url: '/api/meeting-types/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Свободные слоты типа встречи за всё окно записи.
+ *
+ * Окно — 14 московских дат, старты по будням с 09:00 до 18:00. Маршрут
+ * не принимает дату, диапазон или часовой пояс: клиент показывает время
+ * в поясе гостя сам.
+ */
+export const listMeetingTypeSlots = <ThrowOnError extends boolean = false>(options: Options<ListMeetingTypeSlotsData, ThrowOnError>): RequestResult<ListMeetingTypeSlotsResponses, ListMeetingTypeSlotsErrors, ThrowOnError> => (options.client ?? client).get<ListMeetingTypeSlotsResponses, ListMeetingTypeSlotsErrors, ThrowOnError>({ url: '/api/meeting-types/{id}/slots', ...options });

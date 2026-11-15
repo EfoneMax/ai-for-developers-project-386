@@ -34,11 +34,14 @@
     "ui:add": "shadcn add -c web",
     "typecheck": "npm run typecheck --workspace server && npm run typecheck --workspace web",
     "test": "npm run test --workspace server && npm run test --workspace web",
-    "check": "npm run generate && npm run check:generated && npm run lint && npm run typecheck && npm run test && npm run build --workspace server && npm run build --workspace web"
+    "check": "npm run generate && npm run check:generated && npm run lint && npm run typecheck && npm run test && npm run build --workspace server && npm run build --workspace web",
+    "check:all": "npm run check && npm run check:e2e",
+    "check:e2e": "npm run build && playwright test"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.4",
     "@commitlint/config-conventional": "21.2.4",
+    "@playwright/test": "1.65.1",
     "agnix": "0.61.0",
     "concurrently": "10.0.7",
     "knip": "6.44.2",
